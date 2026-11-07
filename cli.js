@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const Lg = require('./logos.js');
+const Api = require('./logos-api.js');
 const KeelModel = require('./examples/keel-model.js');
 
 const cmd = process.argv[2] || 'check';
@@ -63,6 +64,31 @@ if (cmd === 'init' || cmd === 'discover') {
         (m.testDeps.length ? `, testDeps: [${m.testDeps.join(', ')}]` : '')
     );
   }
+  process.exit(0);
+}
+
+if (cmd === 'verify-unit') {
+  console.log(JSON.stringify(Api.verifyUnit({ unitDir: arg }), null, 2));
+  process.exit(0);
+}
+
+if (cmd === 'slot-brief') {
+  console.log(Api.slotBrief({ slotId: arg, unitDir: process.argv[4] }));
+  process.exit(0);
+}
+
+if (cmd === 'simulate') {
+  console.log(JSON.stringify(Api.simulate({ scenarioId: arg, unitDir: process.argv[4] }), null, 2));
+  process.exit(0);
+}
+
+if (cmd === 'scaffold') {
+  if (!arg || !process.argv[4]) {
+    console.error('Использование: node cli.js scaffold <targetDir> <projectId> [title]');
+    process.exit(2);
+  }
+  const res = Api.scaffoldProject({ targetDir: arg, id: process.argv[4], title: process.argv[5] });
+  console.log(JSON.stringify(res, null, 2));
   process.exit(0);
 }
 

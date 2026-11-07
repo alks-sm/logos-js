@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "logos": {
+      "command": "node",
+      "args": ["/mnt/Projects/research/Logos/mcp-server.js"]
+    }
+  }
+}

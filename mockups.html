@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logos UI — 3 концепта интерфейса (А: Чертёжный стол · Б: Конвейер 3 колонки · В: Карта + Регистры ДРАКОН)</title>
+<link rel="stylesheet" href="vendor/drakon.css">
+<link rel="stylesheet" href="vendor/lanes.css">
+<link rel="stylesheet" href="logos.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--lg-page); color: var(--lg-ink); font: 13px/1.45 var(--lg-font); }
+
+  /* Переключатель концептов сверху */
+  .concept-switcher {
+    position: sticky; top: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 8px 16px; background: #181a1f; color: #f3f4f6;
+    border-bottom: 1px solid #2e323b; font-size: 12.5px;
+  }
+  .concept-switcher .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .concept-btn {
+    background: #262932; color: #c8cdd6; border: 1px solid #3a3f4d;
+    border-radius: 6px; padding: 5px 12px; font: 600 12px var(--lg-font); cursor: pointer;
+  }
+  .concept-btn[aria-pressed="true"] {
+    background: #2563eb; color: #ffffff; border-color: #3b82f6;
+  }
+  .view-pane { display: none; min-height: calc(100vh - 43px); }
+  .view-pane.active { display: block; }
+
+  /* Общие элементы */
+  .mono { font-family: var(--lg-mono); font-size: 11.5px; }
+  .muted { color: var(--lg-soft); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    background: var(--lg-strip); color: var(--lg-ink); border: 1px solid var(--lg-hairline);
+  }
+  .chip.ok { background: var(--lg-ok-bg); color: var(--lg-ok); border-color: transparent; }
+  .chip.warn { background: var(--lg-warn-bg); color: var(--lg-warn); border-color: transparent; }
+  .chip.stop { background: var(--lg-stop-bg); color: var(--lg-stop); border-color: transparent; }
+  .chip.accent { background: var(--lg-accent-bg); color: var(--lg-accent); border-color: transparent; }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     ВАРИАНТ А: «ЧЕРТЁЖНЫЙ СТОЛ» (CAD-подобный: 85% экран — чистое полотно + плавающий паспорт)
+     ══════════════════════════════════════════════════════════════════════════ */
+  .va-layout {
+    position: relative; height: calc(100vh - 43px); display: grid;
+    grid-template-rows: 46px 1fr 52px; overflow: hidden; background: var(--lg-ground);
+  }
+  .va-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 0 16px; background: var(--lg-page); border-bottom: 1px solid var(--lg-hairline);
+  }
+  .va-nav-group { display: flex; align-items: center; gap: 6px; }
+  .va-stage {
+    position: relative; overflow: auto; padding: 20px 380px 20px 24px;
+    background: radial-gradient(var(--lg-hairline) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .va-stage svg.dk { width: 100%; height: auto; max-width: 820px; background: var(--lg-ground); border-radius: 10px; border: 1px solid var(--lg-hairline); padding: 8px; }
+  .va-floating-inspector {
+    position: absolute; top: 62px; right: 16px; width: 344px; bottom: 68px;
+    background: var(--lg-ground); border: 1px solid var(--lg-hairline);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+  }
+  .va-bottombar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 0 16px; background: var(--lg-page); border-top: 1px solid var(--lg-hairline);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     ВАРИАНТ Б: «СБОРОЧНЫЙ КОНВЕЙЕР (3 КОЛОНКИ)» (Гнёзда колбэков ↔ Схема ↔ Паспорт и тесты)
+     ══════════════════════════════════════════════════════════════════════════ */
+  .vb-layout {
+    height: calc(100vh - 43px); display: grid;
+    grid-template-rows: 44px 1fr; overflow: hidden;
+  }
+  .vb-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; background: var(--lg-ground); border-bottom: 1px solid var(--lg-hairline);
+  }
+  .vb-cols {
+    display: grid; grid-template-columns: 270px 1fr 370px; height: 100%; overflow: hidden;
+  }
+  .vb-left {
+    background: var(--lg-ground); border-right: 1px solid var(--lg-hairline);
+    padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  }
+  .vb-slot-group h5 {
+    margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--lg-faint);
+  }
+  .vb-slot-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 12.5px;
+    border: 1px solid transparent; margin-bottom: 3px;
+  }
+  .vb-slot-item:hover { background: var(--lg-strip); }
+  .vb-slot-item.active { background: var(--lg-accent-bg); border-color: var(--lg-accent); color: var(--lg-accent); font-weight: 600; }
+  .vb-center {
+    background: var(--lg-page); padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 10px;
+  }
+  .vb-center-canvas {
+    background: var(--lg-ground); border: 1px solid var(--lg-hairline); border-radius: 10px; padding: 10px; flex: 1; overflow: auto;
+  }
+  .vb-center-canvas svg.dk { width: 100%; height: auto; }
+  .vb-right {
+    background: var(--lg-ground); border-left: 1px solid var(--lg-hairline);
+    padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     ВАРИАНТ В: «ДРАКОН + ТАБЛИЦА РЕГИСТРОВ (АССЕМБЛЕРНЫЙ СТИЛЬ)»
+     ══════════════════════════════════════════════════════════════════════════ */
+  .vc-layout {
+    padding: 16px 20px; max-width: 1220px; margin: 0 auto; display: grid; gap: 16px;
+  }
+  .vc-top-cards {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  }
+  .vc-mod-card {
+    background: var(--lg-ground); border: 1px solid var(--lg-hairline); border-radius: 8px;
+    padding: 10px 12px; display: grid; gap: 4px;
+  }
+  .vc-mod-card.active { border-color: var(--lg-accent); box-shadow: 0 0 0 2px var(--lg-accent-bg); }
+  .vc-tape {
+    display: flex; align-items: center; gap: 6px; overflow-x: auto;
+    background: var(--lg-ground); border: 1px solid var(--lg-hairline); border-radius: 8px; padding: 8px 12px;
+  }
+  .vc-tape-step {
+    padding: 4px 9px; border-radius: 5px; background: var(--lg-strip); font: 11.5px var(--lg-mono); white-space: nowrap;
+  }
+  .vc-tape-step.hit { background: var(--lg-ok-bg); color: var(--lg-ok); font-weight: 600; border: 1px solid var(--lg-ok); }
+  .vc-workbench {
+    display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; align-items: start;
+  }
+  .vc-reg-card {
+    background: var(--lg-ground); border: 1px solid var(--lg-hairline); border-radius: 10px; overflow: hidden;
+  }
+  .vc-reg-card h4 {
+    margin: 0; padding: 9px 12px; background: var(--lg-strip); font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: .05em; color: var(--lg-soft); border-bottom: 1px solid var(--lg-hairline);
+  }
+  .vc-reg-table { width: 100%; border-collapse: collapse; font: 12px var(--lg-mono); }
+  .vc-reg-table th, .vc-reg-table td { padding: 6px 10px; border-bottom: 1px solid var(--lg-hairline); text-align: left; }
+  .vc-reg-table tr.changed td { background: var(--lg-ok-bg); color: var(--lg-ok); font-weight: 600; }
+
+  pre.code-mini {
+    margin: 0; padding: 10px 12px; border-radius: 7px; background: var(--lg-strip);
+    border: 1px solid var(--lg-hairline); font: 11.5px/1.45 var(--lg-mono); white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+
+<div class="concept-switcher">
+  <div><b>Logos UI — выбор концепции интерфейса</b> <span style="opacity:.7;margin-left:8px">Живые данные модуля nav-skeleton (15 колбэков, 4 сценария)</span></div>
+  <div class="tabs">
+    <button type="button" class="concept-btn" data-pane="pane-a" aria-pressed="true">Вариант А: «Чертёжный стол» (Полотно + Плашка)</button>
+    <button type="button" class="concept-btn" data-pane="pane-b" aria-pressed="false">Вариант Б: «Конвейер 3 колонки» (Гнёзда ↔ Схема ↔ Тесты)</button>
+    <button type="button" class="concept-btn" data-pane="pane-c" aria-pressed="false">Вариант В: «ДРАКОН + Таблица регистров» (Стиль Ассемблера)</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     ВАРИАНТ А: ЧЕРТЁЖНЫЙ СТОЛ
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div class="view-pane active" id="pane-a">
+  <div class="va-layout">
+    <div class="va-topbar">
+      <div class="va-nav-group">
+        <b>Keel</b> <span class="muted">/</span> <code>nav-skeleton</code>
+        <span class="chip ok">✓ 15/15 гнёзд закрыто</span>
+        <span class="chip accent">deepFreeze: ВКЛ</span>
+      </div>
+      <div class="va-nav-group">
+        <span class="muted">Представление:</span>
+        <button class="pill-btn" aria-pressed="true">ДРАКОН (2-plan.js)</button>
+        <button class="pill-btn" aria-pressed="false">Автомат состояний</button>
+        <button class="pill-btn" aria-pressed="false">Слои и сокеты</button>
+        <button class="pill-btn" aria-pressed="false">Дорожки (Lanes)</button>
+      </div>
+    </div>
+
+    <div class="va-stage">
+      <div id="va-drakon-box"></div>
+      <aside class="va-floating-inspector">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="chip accent">Гнездо: guard</span>
+          <span class="chip ok">✓ 2/2 тестов ОК</span>
+        </div>
+        <h3 style="margin:0;font-size:15px">canSwitchTab(state, bag, world)</h3>
+        <div class="muted" style="font-size:12px">Икона: <code>Маршрут действия › tab › Вкладка допустима?</code></div>
+        <div style="font-size:12px">
+          <b>Читает (reads):</b> <code>state.open</code>, <code>bag.action.tab</code>, <code>world.drawings</code><br>
+          <b>Возвращает:</b> <code>boolean</code> (да → вниз, нет → вправо в отказ)
+        </div>
+        <div style="font-size:11.5px;font-weight:600;color:var(--lg-soft)">ЧИСТАЯ РЕАЛИЗАЦИЯ (impl/guards.js):</div>
+        <pre class="code-mini">canSwitchTab: (state, bag, world) => {
+  const target = bag.action && bag.action.tab;
+  if (target === 'model') return true;
+  if (state.open.kind === 'assembly') return false;
+  if (!state.open.path) return false;
+  return (world.drawings || []).includes(state.open.path);
+}</pre>
+        <div style="font-size:11.5px;font-weight:600;color:var(--lg-soft)">КОНТРАКТНЫЕ ПРИМЕРЫ (3-contracts.js):</div>
+        <div class="rt-step"><span>✓ деталь проекта с чертежом</span><b>→ true</b></div>
+        <div class="rt-step"><span>✓ сборка (чертёж запрещён)</span><b>→ false</b></div>
+        <button class="pill-btn" aria-pressed="true" style="width:100%;margin-top:auto">📋 Скопировать микро-ТЗ для ИИ (MCP: logos_slot_brief)</button>
+      </aside>
+    </div>
+
+    <div class="va-bottombar">
+      <div class="va-nav-group">
+        <b>Прогон сценария:</b>
+        <button class="pill-btn" aria-pressed="false">1. Чертёж ОК (шампур)</button>
+        <button class="pill-btn" aria-pressed="true">2. Отказ в сборке (ветка «нет»)</button>
+        <button class="pill-btn" aria-pressed="false">3. Устаревший rev (отсечение)</button>
+        <button class="pill-btn" aria-pressed="false">4. Открытие сборки (rev++)</button>
+      </div>
+      <div class="mono muted">Итог: Отказ «В режиме сборки вкладка чертежа детали недоступна» · 6 шагов</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     ВАРИАНТ Б: СБОРОЧНЫЙ КОНВЕЙЕР (3 КОЛОНКИ)
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div class="view-pane" id="pane-b">
+  <div class="vb-layout">
+    <div class="vb-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <b>Logos · Сборочный конвейер модуля</b> <code>examples/nav-skeleton</code>
+        <span class="chip ok">✓ Верификация М11: 19/19</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="pill-btn" aria-pressed="true">+ Новый проект (scaffold)</button>
+        <button class="pill-btn">Проверить все модули (verifyRepo)</button>
+      </div>
+    </div>
+
+    <div class="vb-cols">
+      <div class="vb-left">
+        <div class="vb-slot-group">
+          <h5>Вопросы D.q / D.choice (guards · 4)</h5>
+          <div class="vb-slot-item"><span><code>isRevFresh</code></span><span class="chip ok">2/2</span></div>
+          <div class="vb-slot-item"><span><code>actionCategory</code></span><span class="chip ok">3/3</span></div>
+          <div class="vb-slot-item active"><span><code>canSwitchTab</code></span><span class="chip ok">2/2</span></div>
+          <div class="vb-slot-item"><span><code>isPartModelOpen</code></span><span class="chip ok">2/2</span></div>
+        </div>
+        <div class="vb-slot-group">
+          <h5>Шаги данных D.act (steps · 6)</h5>
+          <div class="vb-slot-item"><span><code>capturePrev</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>applyOpen</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>applyTab</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>recordTabRefusal</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>applyPick</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>computeEffects</code></span><span class="chip ok">1/1</span></div>
+        </div>
+        <div class="vb-slot-group">
+          <h5>Внешние порты D.shelf (ports · 5)</h5>
+          <div class="vb-slot-item"><span><code>ui.refuseStale</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>ui.refuseTab</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>ui.refusePick</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>ui.renderDiff</code></span><span class="chip ok">1/1</span></div>
+          <div class="vb-slot-item"><span><code>api.requestBuild</code></span><span class="chip ok">1/1</span></div>
+        </div>
+      </div>
+
+      <div class="vb-center">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b>План исполнения (2-plan.js) · Трасса сценария №1 («Переключить на Чертёж — ОК»)</b>
+          <span class="chip ok">Пройдено узлов: 9</span>
+        </div>
+        <div class="vb-center-canvas" id="vb-drakon-box"></div>
+      </div>
+
+      <div class="vb-right">
+        <h3 style="margin:0;font-size:15px">Паспорт гнезда: <code>canSwitchTab</code></h3>
+        <div style="font-size:12px" class="muted">Файл: <code>impl/guards.js</code> · Страж чистоты: <b>0 let/class/this/DOM</b></div>
+        <pre class="code-mini">// Вход заморожен (Object.freeze)
+canSwitchTab: (state, bag, world) => {
+  const targetTab = bag.action && bag.action.tab;
+  if (targetTab === 'model') return true;
+  if (state.open.kind === 'assembly') return false;
+  if (!state.open.path) return false;
+  return (world.drawings || []).includes(state.open.path);
+}</pre>
+        <h4 style="margin:4px 0 0;font-size:12px;color:var(--lg-soft);text-transform:uppercase">Трасса прогона сценария №1:</h4>
+        <div class="rt-step"><span><b>#1</b> <code>capturePrev()</code></span><span class="muted">снимок rev=1</span></div>
+        <div class="rt-step"><span><b>#2</b> <code>isRevFresh()</code></span><span class="muted">→ да</span></div>
+        <div class="rt-step"><span><b>#3</b> <code>actionCategory()</code></span><span class="muted">→ tab</span></div>
+        <div class="rt-step"><span><b>#4</b> <code>canSwitchTab()</code></span><span class="muted">→ да</span></div>
+        <div class="rt-step"><span><b>#5</b> <code>applyTab()</code></span><span class="muted">tab="drawing"</span></div>
+        <div class="rt-step"><span><b>#6</b> <code>computeEffects()</code></span><span class="muted">mode="drawing"</span></div>
+        <div class="rt-step"><span><b>#7</b> <code>ui.renderDiff()</code></span><span class="muted">panels=[tab, bar]</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     ВАРИАНТ В: ДРАКОН + ТАБЛИЦА РЕГИСТРОВ (СТИЛЬ АССЕМБЛЕРА)
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div class="view-pane" id="pane-c">
+  <div class="vc-layout">
+    <div class="vc-top-cards">
+      <div class="vc-mod-card active">
+        <div style="display:flex;justify-content:space-between"><b>1-schema.js</b><span class="chip accent">Регистры</span></div>
+        <div class="muted" style="font-size:12px">4 регистра State · 2 вычисляемых флага (modeOf, whyNotDrawing)</div>
+      </div>
+      <div class="vc-mod-card active">
+        <div style="display:flex;justify-content:space-between"><b>2-plan.js</b><span class="chip ok">ДРАКОН</span></div>
+        <div class="muted" style="font-size:12px">Силуэт: 3 ветки · 15 икон · 0 пересечений</div>
+      </div>
+      <div class="vc-mod-card active">
+        <div style="display:flex;justify-content:space-between"><b>3-contracts.js</b><span class="chip ok">19/19 тестов</span></div>
+        <div class="muted" style="font-size:12px">Паспорта входов/выходов на каждую икону</div>
+      </div>
+      <div class="vc-mod-card active">
+        <div style="display:flex;justify-content:space-between"><b>impl/*.js</b><span class="chip ok">Чистый код</span></div>
+        <div class="muted" style="font-size:12px">guards (4) · steps (6) · ports (5) · 0 скрытых переменных</div>
+      </div>
+    </div>
+
+    <div class="vc-tape">
+      <b style="font-size:12px;margin-right:4px">Лента тактов (Сценарий 4 — Открытие сборки):</b>
+      <span class="vc-tape-step hit">T1: capturePrev</span>
+      <span>→</span>
+      <span class="vc-tape-step hit">T2: isRevFresh (ДА)</span>
+      <span>→</span>
+      <span class="vc-tape-step hit">T3: actionCategory (open)</span>
+      <span>→</span>
+      <span class="vc-tape-step hit">T4: applyOpen (rev=4)</span>
+      <span>→</span>
+      <span class="vc-tape-step hit">T5: api.requestBuild</span>
+      <span>→</span>
+      <span class="vc-tape-step hit">T6: computeEffects</span>
+      <span>→</span>
+      <span class="vc-tape-step hit">T7: ui.renderDiff</span>
+    </div>
+
+    <div class="vc-workbench">
+      <div class="lg-canvas" id="vc-drakon-box" style="padding:10px"></div>
+
+      <div style="display:grid;gap:12px">
+        <div class="vc-reg-card">
+          <h4>Регистры состояния (State: ДО такта → ПОСЛЕ такта) · Зелёным — изменённые ячейки</h4>
+          <table class="vc-reg-table">
+            <thead>
+              <tr><th>Регистр</th><th>До (T0)</th><th>После (T7)</th></tr>
+            </thead>
+            <tbody>
+              <tr class="changed"><td>state.open.kind</td><td>"part"</td><td>"assembly"</td></tr>
+              <tr class="changed"><td>state.open.path</td><td>"parts/shaft"</td><td>"sub/drive"</td></tr>
+              <tr class="changed"><td>state.open.pick</td><td>{feature:"extrude-1", edges:[7]}</td><td>— (сброшено по 0036)</td></tr>
+              <tr class="changed"><td>state.tab</td><td>"drawing"</td><td>"model"</td></tr>
+              <tr><td>state.shown</td><td>{sketches:true, skeleton:true}</td><td>{sketches:true, skeleton:true}</td></tr>
+              <tr class="changed"><td>state.rev</td><td>3</td><td>4</td></tr>
+              <tr class="changed"><td>[derived] modeOf(state)</td><td>"drawing"</td><td>"assembly"</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="vc-reg-card">
+          <h4>Рабочие регистры шага (Bag — живут только внутри прогона схемы)</h4>
+          <table class="vc-reg-table">
+            <thead>
+              <tr><th>Поле Bag</th><th>Значение на выходе</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>bag.action</td><td>{ type: "open", open: { kind: "assembly", path: "sub/drive" } }</td></tr>
+              <tr><td>bag.derivedMode</td><td>"assembly"</td></tr>
+              <tr><td>bag.changedPanels</td><td>["scene", "tree", "crumbs", "tab", "bar", "selection", "context-bar"]</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="vc-reg-card">
+          <h4>Шина внешних портов (D.shelf → Вызовы за такт)</h4>
+          <table class="vc-reg-table">
+            <thead>
+              <tr><th>Порт</th><th>Команда</th><th>Пакет данных</th></tr>
+            </thead>
+            <tbody>
+              <tr class="changed"><td>api</td><td>requestBuild</td><td>api.call("assembly.evaluate", { path: "sub/drive", rev: 4 })</td></tr>
+              <tr class="changed"><td>ui</td><td>renderDiff</td><td>render(mode="assembly", panels=[scene, tree, crumbs, tab, ...])</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/drakon.js"></script>
+<script src="vendor/lanes.js"></script>
+<script src="logos.js"></script>
+<script src="runtime.js"></script>
+<script src="examples/nav-skeleton/1-schema.js"></script>
+<script src="examples/nav-skeleton/2-plan.js"></script>
+<script src="examples/nav-skeleton/3-contracts.js"></script>
+<script src="examples/nav-skeleton/impl/guards.js"></script>
+<script src="examples/nav-skeleton/impl/steps.js"></script>
+<script src="examples/nav-skeleton/impl/ports.js"></script>
+<script src="examples/nav-skeleton/index.js"></script>
+<script>
+(function () {
+  const D = window.Drakon;
+  const Rt = window.LogosRuntime;
+  const Unit = window.NavSkeletonUnit;
+  const scheme = Unit.plan.schemes.applyNav;
+
+  function renderTracedScheme(containerId, scenarioIndex) {
+    const box = document.getElementById(containerId);
+    box.innerHTML = D.svg(scheme);
+    const sc = Unit.schema.scenarios[scenarioIndex];
+    const res = Rt.run(scheme, Unit.impl, sc.state, sc.bag, sc.world);
+    const hits = new Set(res.trace.map((t) => t.where));
+    const svg = box.querySelector('svg.dk');
+    if (svg) {
+      svg.style.width = '100%';
+      svg.style.height = 'auto';
+      svg.classList.add('dk-tracing');
+      svg.querySelectorAll('.dk-node').forEach((n) => {
+        const w = n.getAttribute('data-where');
+        n.classList.toggle('dk-trace-hit', Boolean(w && hits.has(w)));
+      });
+    }
+  }
+
+  renderTracedScheme('va-drakon-box', 1); // Сценарий 2 (отказ вкладки в сборке)
+  renderTracedScheme('vb-drakon-box', 0); // Сценарий 1 (переключение вкладки ОК)
+  renderTracedScheme('vc-drakon-box', 3); // Сценарий 4 (открытие сборки и сброс регистров)
+
+  // Переключение вкладок концептов
+  const btns = document.querySelectorAll('.concept-btn');
+  function activatePane(paneId) {
+    btns.forEach((b) => b.setAttribute('aria-pressed', b.dataset.pane === paneId ? 'true' : 'false'));
+    document.querySelectorAll('.view-pane').forEach((p) => {
+      p.classList.toggle('active', p.id === paneId);
+    });
+  }
+  btns.forEach((btn) => {
+    btn.onclick = () => activatePane(btn.dataset.pane);
+  });
+  const qv = new URLSearchParams(location.search).get('v');
+  if (qv === 'b' || location.hash === '#pane-b') activatePane('pane-b');
+  if (qv === 'c' || location.hash === '#pane-c') activatePane('pane-c');
+})();
+</script>
+</body>
+</html>

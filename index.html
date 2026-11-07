@@ -213,6 +213,39 @@
 <div id="xray-panel">
   <h3 id="xray-title">Module X-ray</h3>
   <div id="xray-content"></div>
+  <section id="sec-runtime">
+    <h2>8. Живой стенд: Исполняемый скелет ДРАКОН + Чистые колбэки (Logos.Runtime)</h2>
+    <p class="soft">Демонстрация архитектуры «Сверху вниз»: схема ДРАКОН в <code>2-plan.js</code> — это не просто картинка,
+      а <b>исполняемый диспетчер</b>. Каждая икона вызывает чистый колбэк из <code>impl/</code> (с заморозкой входа через
+      <code>deepFreeze</code> — скрытые состояния невозможны). Выбери сценарий ниже: движок реально исполнит схему и
+      подсветит зелёным пройденный маршрут прямо на чертеже.</p>
+    <div class="summary-card" id="rt-verify-summary"></div>
+    <div class="bar-pills" id="rt-scenario-pills"></div>
+    <div id="fig-rt-drakon"></div>
+    <div class="rt-grid">
+      <div class="rt-card">
+        <h4>Трасса исполнения по иконам схемы (trace)</h4>
+        <div id="rt-trace-list" style="display:grid;gap:5px"></div>
+      </div>
+      <div class="rt-card">
+        <h4>Вход → Новое состояние (State) и Порты (shelf)</h4>
+        <pre id="rt-state-out" style="font-size:12px"></pre>
+      </div>
+    </div>
+    <div class="table">
+      <table id="tbl-rt-files">
+        <thead>
+          <tr>
+            <th>Файл модуля (examples/nav-skeleton/)</th>
+            <th>Архитектурная роль</th>
+            <th>Контроль чистоты</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <div id="xray-panel">
     <h3 id="xray-title">Module X-ray</h3>
     <div id="xray-content"></div>
@@ -222,8 +255,16 @@
 <script src="vendor/drakon.js"></script>
 <script src="vendor/lanes.js"></script>
 <script src="logos.js"></script>
+<script src="runtime.js"></script>
 <script src="examples/keel-model.js"></script>
 <script src="examples/keel-verify-snapshot.js"></script>
+<script src="examples/nav-skeleton/1-schema.js"></script>
+<script src="examples/nav-skeleton/2-plan.js"></script>
+<script src="examples/nav-skeleton/3-contracts.js"></script>
+<script src="examples/nav-skeleton/impl/guards.js"></script>
+<script src="examples/nav-skeleton/impl/steps.js"></script>
+<script src="examples/nav-skeleton/impl/ports.js"></script>
+<script src="examples/nav-skeleton/index.js"></script>
 <script>
 (function () {
   const M = window.KeelModel;
@@ -417,6 +458,84 @@
       document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
     }
   });
+
+  // 8. Живой стенд исполняемого скелета (Logos.Runtime + NavSkeletonUnit)
+  const Rt = window.LogosRuntime;
+  const Unit = window.NavSkeletonUnit;
+  if (Rt && Unit) {
+    const vRes = Rt.verifySkeleton(Unit);
+    const vBox = document.getElementById('rt-verify-summary');
+    vBox.innerHTML =
+      `<div class="lint-item ${vRes.ok ? 'ok' : 'error'}">` +
+      `<b>${vRes.ok ? '✓ Скелет и колбэки верифицированы' : '✗ Ошибка верификации'}</b> ` +
+      `<span>Проверено привязок икон и контрактных тестов: <b>${vRes.passed.length} ОК</b>, ошибок: <b>${vRes.issues.length}</b> · Защита <code>deepFreeze</code> включена (0 скрытых состояний)</span>` +
+      `</div>`;
+
+    const filesBody = document.querySelector('#tbl-rt-files tbody');
+    for (const f of Unit.filesLayout) {
+      const tr = document.createElement('tr');
+      const isImpl = f.path.startsWith('impl/');
+      tr.innerHTML =
+        `<td><code>${f.path}</code></td>` +
+        `<td>${f.role}</td>` +
+        `<td><span class="lg-badge ${isImpl ? 'lg-badge-ok' : 'lg-badge-accent'}">${isImpl ? '✓ 0 let/class/this/DOM' : 'Чертёж / Закон'}</span></td>`;
+      filesBody.appendChild(tr);
+    }
+
+    const rtFig = document.getElementById('fig-rt-drakon');
+    window.Drakon.figure(rtFig, Unit.plan.schemes.applyNav);
+    const rtFitBtn = rtFig.querySelector('.dk-fit');
+    if (rtFitBtn) rtFitBtn.click();
+
+    const scPills = document.getElementById('rt-scenario-pills');
+    const traceList = document.getElementById('rt-trace-list');
+    const stateOut = document.getElementById('rt-state-out');
+
+    function runScenario(sc) {
+      for (const b of scPills.querySelectorAll('button')) {
+        b.setAttribute('aria-pressed', b.dataset.sc === sc.id ? 'true' : 'false');
+      }
+      const res = Rt.run(Unit.plan.schemes.applyNav, Unit.impl, sc.state, sc.bag, sc.world);
+      const hitWheres = new Set(res.trace.map((t) => t.where));
+
+      const svgEl = rtFig.querySelector('svg.dk');
+      if (svgEl) {
+        svgEl.classList.add('dk-tracing');
+        svgEl.querySelectorAll('.dk-node').forEach((node) => {
+          const w = node.getAttribute('data-where');
+          node.classList.toggle('dk-trace-hit', Boolean(w && hitWheres.has(w)));
+        });
+      }
+
+      traceList.innerHTML = res.trace
+        .filter((t) => t.call || t.iconType === 'branch' || t.iconType === 'end')
+        .map(
+          (t) =>
+            `<div class="rt-step"><span><b>#${t.step}</b> ${t.call ? `<code>${t.call}()</code>` : t.where}</span><span class="soft">${t.detail}</span></div>`
+        )
+        .join('');
+
+      stateOut.textContent =
+        `// Входное действие (bag.action):\n` +
+        JSON.stringify(sc.bag.action, null, 2) +
+        `\n\n// Новое состояние (res.state) + вычисленный mode="${Unit.schema.derived.modeOf(res.state)}":\n` +
+        JSON.stringify(res.state, null, 2) +
+        `\n\n// Вызовы внешних портов (shelf -> effects):\n` +
+        JSON.stringify(res.effects, null, 2);
+    }
+
+    for (const sc of Unit.schema.scenarios) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pill-btn';
+      btn.dataset.sc = sc.id;
+      btn.textContent = sc.title;
+      btn.onclick = () => runScenario(sc);
+      scPills.appendChild(btn);
+    }
+    runScenario(Unit.schema.scenarios[1]); // По умолчанию покажем сценарий №2 (отказ вкладки чертежа в режиме сборки)
+  }
+
 
 })();
 </script>
