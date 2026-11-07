@@ -24,6 +24,10 @@
       .replace(/"/g, '&quot;');
   }
 
+  function getIssuesFor(issues, id) {
+    return issues.filter(i => i.where.includes(id));
+  }
+
   /* ── Конструкторы записей базы Logos ───────────────────────────────────────── */
 
   function term(id, title, meaning, opts) {
@@ -680,7 +684,7 @@
 
   /* ── SVG-представление 1: Интерактивная карта слоёв, модулей и сокетов ─────── */
 
-  function layersSvg(proj, verifySnapshot) {
+  function layersSvg(proj, issues, verifySnapshot) {
     const layersMap = new Map();
     for (const m of proj.modules) {
       if (!layersMap.has(m.layer)) {
@@ -735,8 +739,6 @@
     out.push(
       `<defs>` +
         `<marker id="lg-dep-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L7,4 L0,7 z" class="lg-arrow"/></marker>` +
-        `<marker id="lg-dep-out" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L7,4 L0,7 z" fill="var(--lg-ok)"/></marker>` +
-        `<marker id="lg-dep-in" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L7,4 L0,7 z" fill="var(--lg-accent)"/></marker>` +
       `</defs>`
     );
 
@@ -779,23 +781,25 @@
     for (const [id, box] of modCoords.entries()) {
       const m = box.mod;
       const ms = mStatsMap[id];
+      const nodeIssues = getIssuesFor(issues, `module:${id}`);
+      const hasErr = nodeIssues.some(i => i.level === 'error');
+      
       let statusCls = '';
       let badgeText = m.id;
-      if (ms) {
-        if (ms.errors > 0) {
-          statusCls = ' lg-mod-err';
-          badgeText = `✗ ${ms.errors} ош. · ${ms.files} ф.`;
-        } else if (ms.warns > 0) {
-          statusCls = ' lg-mod-warn';
-          badgeText = `⚠ ${ms.warns} пред. · ${ms.files} ф.`;
-        } else {
-          statusCls = ' lg-mod-ok';
-          badgeText = `✓ ${ms.files} ф.`;
-        }
+      if (hasErr || (ms && ms.errors > 0)) {
+        statusCls = ' lg-mod-err';
+        badgeText = `✗ ${hasErr ? nodeIssues.length : ms.errors} ош.`;
+      } else if (ms && ms.warns > 0) {
+        statusCls = ' lg-mod-warn';
+        badgeText = `⚠ ${ms.warns} пред.`;
+      } else {
+        statusCls = ' lg-mod-ok';
+        badgeText = `✓ ${ms ? ms.files : ''} ф.`;
       }
+      
       const cls = (m.layer <= 1 ? 'lg-mod lg-mod-core' : 'lg-mod') + statusCls;
 
-      out.push(`<g class="lg-node-group" data-module="${esc(id)}" tabindex="0" role="button">`);
+      out.push(`<g class="lg-node-group" data-module="${esc(id)}" data-issues="${esc(JSON.stringify(nodeIssues))}" tabindex="0" role="button">`);
       out.push(`<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="7" class="${cls}"/>`);
       const titleShort = m.title.length > 22 ? m.title.slice(0, 21) + '…' : m.title;
       out.push(`<text x="${box.x + 12}" y="${box.y + 20}" class="lg-t lg-b">${esc(titleShort)}</text>`);
@@ -821,9 +825,9 @@
     return out.join('\n');
   }
 
-  /* ── SVG-представление 2: Интерактивный автомат состояний и стек возврата Esc ─ */
+  /* ── SVG-представление 2: Интерактивный автомат состояний (с диагностикой) ─ */
 
-  function statesSvg(proj) {
+  function statesSvg(proj, issues) {
     const states = proj.states;
     const transitions = proj.transitions;
     if (!states.length) return '<svg class="lg" width="200" height="40"></svg>';
@@ -880,8 +884,11 @@
 
     for (const [, box] of coords.entries()) {
       const st = box.state;
-      const cls = st.initial ? 'lg-state lg-state-init' : 'lg-state';
-      out.push(`<g class="lg-state-group" data-state="${esc(st.id)}" tabindex="0" role="button">`);
+      const nodeIssues = getIssuesFor(issues, `state:${st.id}`);
+      const hasErr = nodeIssues.some(i => i.level === 'error');
+      
+      const cls = (st.initial ? 'lg-state lg-state-init' : 'lg-state') + (hasErr ? ' lg-state-err' : '');
+      out.push(`<g class="lg-state-group" data-state="${esc(st.id)}" data-issues="${esc(JSON.stringify(nodeIssues))}" tabindex="0" role="button">`);
       out.push(`<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="7" class="${cls}"/>`);
       const badge = st.initial ? '● ' : '';
       const stTitle = (badge + st.title).length > 18 ? (badge + st.title).slice(0, 17) + '…' : badge + st.title;

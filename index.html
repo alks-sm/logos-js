@@ -263,7 +263,7 @@
   }
 
   // 1. Слои и сокеты плагинов
-  document.getElementById('fig-layers').innerHTML = Lg.layersSvg(M);
+  document.getElementById('fig-layers').innerHTML = Lg.layersSvg(M, issues, V);
   const sockBody = document.querySelector('#tbl-sockets tbody');
   for (const s of M.sockets) {
     const tr = document.createElement('tr');
@@ -293,7 +293,7 @@
   }
 
   // 3. Автомат состояний
-  document.getElementById('fig-states').innerHTML = Lg.statesSvg(M);
+  document.getElementById('fig-states').innerHTML = Lg.statesSvg(M, issues);
 
   // 4. Протоколы Lanes
   const lanesList = document.getElementById('lanes-list');
@@ -376,33 +376,45 @@
   const xrayTitle = document.getElementById('xray-title');
   const xrayContent = document.getElementById('xray-content');
 
-  function openXray(modId) {
-    const mod = M.modules.find(m => m.id === modId);
-    if (!mod) return;
-    document.querySelectorAll('.lg-node-group').forEach(el => el.classList.remove('selected'));
-    document.querySelector(`[data-module="${modId}"]`).classList.add('selected');
+  function openXray(targetEl) {
+    const modId = targetEl.dataset.module;
+    const stateId = targetEl.dataset.state;
+    const issues = JSON.parse(targetEl.dataset.issues || '[]');
     
-    xrayTitle.textContent = 'Рентген: ' + mod.id;
-    const ms = V.moduleStats[modId] || { findings: [], files: 0, lines: 0 };
-    xrayContent.innerHTML = `
-      <p><b>${mod.title}</b><br><span class="soft">${mod.role}</span></p>
-      <div class="stats">
-        <div class="stat"><b>${ms.files}</b><span>файлов</span></div>
-        <div class="stat"><b>${ms.lines}</b><span>строк</span></div>
-      </div>
-      ${ms.findings.length ? '<h5>Нарушения:</h5>' : ''}
-      ${ms.findings.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
-    `;
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    targetEl.classList.add('selected');
+    
+    if (modId) {
+        const mod = M.modules.find(m => m.id === modId);
+        xrayTitle.textContent = 'Рентген: ' + mod.id;
+        const ms = V.moduleStats[modId] || { findings: [], files: 0, lines: 0 };
+        xrayContent.innerHTML = `
+          <p><b>${mod.title}</b><br><span class="soft">${mod.role}</span></p>
+          <div class="stats">
+            <div class="stat"><b>${ms.files}</b><span>файлов</span></div>
+            <div class="stat"><b>${ms.lines}</b><span>строк</span></div>
+          </div>
+          ${(issues.length || ms.findings.length) ? '<h5>Нарушения:</h5>' : ''}
+          ${issues.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
+          ${ms.findings.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
+        `;
+    } else if (stateId) {
+        xrayTitle.textContent = 'Состояние: ' + stateId;
+        xrayContent.innerHTML = `
+          ${issues.length ? '<h5>Проблемы автомата:</h5>' : '<p class="soft">Состояние валидно.</p>'}
+          ${issues.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
+        `;
+    }
     xrayPanel.style.display = 'block';
   }
 
   document.addEventListener('click', (e) => {
-    const target = e.target.closest('[data-module]');
+    const target = e.target.closest('[data-module], [data-state]');
     if (target) {
-      openXray(target.dataset.module);
+      openXray(target);
     } else if (!e.target.closest('#xray-panel')) {
       xrayPanel.style.display = 'none';
-      document.querySelectorAll('.lg-node-group').forEach(el => el.classList.remove('selected'));
+      document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
     }
   });
 
