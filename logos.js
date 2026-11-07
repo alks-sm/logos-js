@@ -25,7 +25,7 @@
   }
 
   function getIssuesFor(issues, id) {
-    return issues.filter(i => i.where.includes(id));
+    return (issues || []).filter((i) => i.where.includes(id));
   }
 
   /* ── Конструкторы записей базы Logos ───────────────────────────────────────── */

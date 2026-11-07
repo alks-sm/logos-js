@@ -89,12 +89,23 @@
     const trace = [];
     let stepCount = 0;
 
-    function tick(where, iconType, call, detail) {
+    function tick(where, iconType, call, detail, beforeState, newEffect) {
       stepCount++;
       if (stepCount > maxSteps) {
         throw new Error(`Logos.Runtime: превышен предел шагов (${maxSteps}) на узле «${where}» (бесконечный цикл).`);
       }
-      trace.push({ step: stepCount, where, iconType, call: call || null, detail });
+      trace.push({
+        step: stepCount,
+        where,
+        iconType,
+        call: call || null,
+        detail,
+        beforeState: beforeState || state,
+        afterState: state,
+        bag,
+        effect: newEffect || null,
+        effects: effects.slice(),
+      });
     }
 
     function execSeq(items, wherePrefix) {
@@ -102,11 +113,11 @@
         const at = wherePrefix ? `${wherePrefix} › ${it.text || it.to || it.t}` : (it.text || it.to || it.t);
 
         if (it.t === 'goto') {
-          tick(at, 'goto', null, `→ ${it.to}`);
+          tick(at, 'goto', null, `→ ${it.to}`, state, null);
           return { jump: it.to };
         }
         if (it.t === 'end') {
-          tick(at, 'end', null, it.text || 'Конец');
+          tick(at, 'end', null, it.text || 'Конец', state, null);
           return { end: it.text || 'Конец' };
         }
 
@@ -114,12 +125,13 @@
           if (!it.call) throw new Error(`Logos.Runtime: у иконы act «${at}» не указан колбэк (call).`);
           const fn = steps[it.call];
           if (typeof fn !== 'function') throw new Error(`Logos.Runtime: не найден чистый шаг steps.${it.call} для «${at}».`);
+          const prevSt = state;
           const res = fn(state, bag, frozenWorld);
           if (res && typeof res === 'object') {
             if ('state' in res && res.state !== undefined) state = cloneAndFreeze(res.state);
             if ('bag' in res && res.bag !== undefined) bag = cloneAndFreeze(Object.assign({}, bag, res.bag));
           }
-          tick(at, 'act', it.call, res && res.note ? res.note : 'выполнено');
+          tick(at, 'act', it.call, res && res.note ? res.note : 'выполнено', prevSt, null);
           continue;
         }
 
@@ -130,9 +142,11 @@
           if (typeof fn !== 'function') {
             throw new Error(`Logos.Runtime: не найден метод порта ports["${it.who}"].${it.call} для «${at}».`);
           }
+          const prevSt = state;
           const eff = fn(state, bag, frozenWorld);
-          if (eff !== undefined) effects.push({ port: it.who, call: it.call, payload: eff });
-          tick(at, 'shelf', `${it.who}.${it.call}`, typeof eff === 'string' ? eff : JSON.stringify(eff));
+          const effEntry = eff !== undefined ? { port: it.who, call: it.call, payload: eff } : null;
+          if (effEntry) effects.push(effEntry);
+          tick(at, 'shelf', `${it.who}.${it.call}`, typeof eff === 'string' ? eff : JSON.stringify(eff), prevSt, effEntry);
           continue;
         }
 
@@ -143,7 +157,7 @@
           const ok = Boolean(fn(state, bag, frozenWorld));
           const downLbl = it.down || 'да';
           const rightLbl = it.right || 'нет';
-          tick(at, 'q', it.call, ok ? downLbl : rightLbl);
+          tick(at, 'q', it.call, ok ? downLbl : rightLbl, state, null);
 
           if (ok) {
             if (it.yes && it.yes.length > 0) {
@@ -166,9 +180,9 @@
           const chosenLabel = String(fn(state, bag, frozenWorld));
           const foundCase = (it.cases || []).find((c) => c.label === chosenLabel) || (it.cases || [])[it.cases.length - 1];
           if (!foundCase) throw new Error(`Logos.Runtime: в выборе «${at}» нет варианта для «${chosenLabel}».`);
-          tick(at, 'choice', it.call, foundCase.label);
+          tick(at, 'choice', it.call, foundCase.label, state, null);
           const caseAt = `${at} › ${foundCase.label}`;
-          tick(caseAt, 'case', null, foundCase.label);
+          tick(caseAt, 'case', null, foundCase.label, state, null);
           const r = execSeq(foundCase.seq || [], caseAt);
           if (r) return r;
           continue;
@@ -179,7 +193,7 @@
           const fn = guards[it.call];
           if (typeof fn !== 'function') throw new Error(`Logos.Runtime: не найден итератор guards.${it.call} для «${at}».`);
           const list = fn(state, bag, frozenWorld) || [];
-          tick(at, 'loop', it.call, `элементов: ${list.length}`);
+          tick(at, 'loop', it.call, `элементов: ${list.length}`, state, null);
           for (let idx = 0; idx < list.length; idx++) {
             bag = cloneAndFreeze(Object.assign({}, bag, { loopItem: list[idx], loopIndex: idx }));
             const r = execSeq(it.body || [], at);
@@ -199,7 +213,7 @@
       const branchMap = new Map((scheme.branches || []).map((b) => [b.name, b]));
       let curBranch = scheme.branches && scheme.branches[0];
       while (curBranch) {
-        trace.push({ step: ++stepCount, where: curBranch.name, iconType: 'branch', call: null, detail: `Ветка «${curBranch.name}»` });
+        tick(curBranch.name, 'branch', null, `Ветка «${curBranch.name}»`, state, null);
         const r = execSeq(curBranch.items || [], curBranch.name);
         if (!r || r.end) {
           outcome = (r && r.end) || 'Конец';

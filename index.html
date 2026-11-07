@@ -3,97 +3,89 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Logos — пульт архитектуры и инвариантов (срез Keel)</title>
+<title>Logos — Пульт Главного Конструктора (ДРАКОН + Лента тактов + Регистры)</title>
 <link rel="stylesheet" href="vendor/drakon.css">
 <link rel="stylesheet" href="vendor/lanes.css">
 <link rel="stylesheet" href="logos.css">
 <style>
   * { box-sizing: border-box; }
-  body {
+  html, body {
+    margin: 0;
     background: var(--lg-page);
     color: var(--lg-ink);
-    font: 14px/1.55 var(--lg-font);
-    margin: 0;
+    font: 13.5px/1.5 var(--lg-font);
   }
+
+  /* Верхняя шапка-рейка с переключением этажей */
+  .topbar {
+    position: sticky; top: 0; z-index: 150;
+    background: var(--lg-ground);
+    border-bottom: 1px solid var(--lg-hairline);
+    padding: 10px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .brand-title { font: 650 16px/1.2 var(--lg-display); }
+  .floor-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .floor-btn {
+    border: 1px solid var(--lg-hairline);
+    background: var(--lg-strip);
+    color: var(--lg-soft);
+    border-radius: 7px;
+    padding: 6px 12px;
+    font: 600 12.5px var(--lg-font);
+    cursor: pointer;
+  }
+  .floor-btn:hover { border-color: var(--lg-accent); color: var(--lg-ink); }
+  .floor-btn[aria-pressed="true"] {
+    background: var(--lg-accent);
+    color: #ffffff;
+    border-color: var(--lg-accent);
+  }
+
   .wrap {
-    max-width: 1160px;
+    max-width: 1380px;
     margin: 0 auto;
-    padding: 28px 18px 64px;
+    padding: 18px 20px 56px;
     display: grid;
-    gap: 32px;
+    gap: 18px;
   }
-  header, section { display: grid; gap: 12px; min-width: 0; }
-  .top-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-  .eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--lg-faint); font-weight: 600; }
-  h1 { font: 600 26px/1.2 var(--lg-display); margin: 0; }
-  h2 { font: 600 19px/1.25 var(--lg-display); margin: 0; display: flex; align-items: center; gap: 10px; }
-  h3 { font: 600 15px/1.3 var(--lg-display); margin: 6px 0 0; }
-  p { margin: 0; max-width: 82ch; }
+  .floor-pane { display: none; gap: 18px; }
+  .floor-pane.active { display: grid; }
+
   .soft { color: var(--lg-soft); }
-  code { font: 12.5px var(--lg-mono); background: var(--lg-strip); padding: 1px 5px; border-radius: 4px; }
+  code { font: 12px var(--lg-mono); background: var(--lg-strip); padding: 1px 5px; border-radius: 4px; }
   pre {
     margin: 0;
-    font: 12.5px/1.5 var(--lg-mono);
-    background: var(--lg-ground);
+    font: 12px/1.45 var(--lg-mono);
+    background: var(--lg-strip);
     border: 1px solid var(--lg-hairline);
-    border-radius: 10px;
-    padding: 14px 16px;
+    border-radius: 8px;
+    padding: 10px 12px;
     overflow-x: auto;
     white-space: pre-wrap;
   }
 
-  /* Сводка здоровья и lint */
-  .summary-card {
+  /* Панель сценариев и Лента тактов (T1..Tn) */
+  .control-deck {
     background: var(--lg-ground);
     border: 1px solid var(--lg-hairline);
     border-radius: 10px;
-    padding: 16px 18px;
+    padding: 12px 16px;
     display: grid;
-    gap: 12px;
+    gap: 10px;
   }
-  .stats {
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--lg-hairline);
+  .deck-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   }
-  .stat { display: flex; align-items: baseline; gap: 6px; }
-  .stat b { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
-  .stat span { font-size: 12.5px; color: var(--lg-soft); }
-  .lint-list { display: grid; gap: 6px; font-size: 13px; }
-  .lint-item {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 7px;
-  }
-  .lint-item.warn { background: var(--lg-warn-bg); color: var(--lg-warn); }
-  .lint-item.error { background: var(--lg-stop-bg); color: var(--lg-stop); }
-  .lint-item.ok { background: var(--lg-ok-bg); color: var(--lg-ok); }
-
-  /* Таблицы */
-  .table {
-    overflow-x: auto;
-    background: var(--lg-ground);
-    border: 1px solid var(--lg-hairline);
-    border-radius: 10px;
-  }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-top: 1px solid var(--lg-hairline); }
-  tr:first-child th { border-top: 0; }
-  th { font-weight: 600; color: var(--lg-soft); font-size: 12px; background: var(--lg-strip); }
-  td:first-child { white-space: nowrap; }
-
-  /* Переключатель модулей для генератора ТЗ */
   .bar-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .pill-btn {
     border: 1px solid var(--lg-hairline);
     background: var(--lg-ground);
     color: var(--lg-soft);
-    border-radius: 7px;
-    padding: 5px 11px;
+    border-radius: 6px;
+    padding: 5px 10px;
     font: 12.5px var(--lg-font);
     cursor: pointer;
   }
@@ -104,50 +96,244 @@
     color: var(--lg-accent);
     font-weight: 600;
   }
+
+  .clock-tape {
+    display: flex; align-items: center; gap: 5px; overflow-x: auto;
+    padding: 6px 4px 2px; border-top: 1px solid var(--lg-hairline);
+  }
+  .tick-btn {
+    border: 1px solid var(--lg-hairline);
+    background: var(--lg-strip);
+    color: var(--lg-ink);
+    border-radius: 6px;
+    padding: 4px 9px;
+    font: 11.5px var(--lg-mono);
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .tick-btn:hover { border-color: var(--lg-accent); }
+  .tick-btn.done { background: var(--lg-ok-bg); color: var(--lg-ok); border-color: transparent; }
+  .tick-btn.current {
+    background: var(--lg-accent); color: #ffffff; border-color: var(--lg-accent); font-weight: 600;
+    box-shadow: 0 0 0 2px var(--lg-accent-bg);
+  }
+
+  /* Полноширинное полотно ДРАКОН в натуральную величину 1:1 */
+  .stage-box {
+    background: var(--lg-ground);
+    border: 1px solid var(--lg-hairline);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stage-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    padding: 9px 14px; background: var(--lg-strip); border-bottom: 1px solid var(--lg-hairline);
+    font-size: 12.5px;
+  }
+  .stage-scroll {
+    overflow: auto;
+    padding: 14px 18px;
+    max-height: 540px;
+    background: radial-gradient(var(--lg-hairline) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .stage-scroll svg.dk {
+    background: var(--lg-ground);
+    border-radius: 8px;
+  }
+  .stage-scroll.fit-width svg.dk {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Нижняя приборная доска: 3 колонки (Регистры State | Bag + Порты | Паспорт и код колбэка) */
+  .instruments-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr 1.1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    .instruments-grid { grid-template-columns: 1fr; }
+  }
+  .inst-card {
+    background: var(--lg-ground);
+    border: 1px solid var(--lg-hairline);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .inst-head {
+    padding: 9px 13px;
+    background: var(--lg-strip);
+    border-bottom: 1px solid var(--lg-hairline);
+    font: 600 11.5px/1.3 var(--lg-display);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--lg-soft);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .inst-body { padding: 12px 13px; display: grid; gap: 10px; }
+
+  .reg-table { width: 100%; border-collapse: collapse; font: 12px/1.4 var(--lg-mono); }
+  .reg-table th, .reg-table td {
+    padding: 6px 10px; border-bottom: 1px solid var(--lg-hairline); text-align: left; vertical-align: top;
+  }
+  .reg-table th { font-size: 11px; color: var(--lg-soft); background: var(--lg-ground); }
+  .reg-table tr:last-child td { border-bottom: 0; }
+  .reg-table tr.changed td {
+    background: var(--lg-ok-bg); color: var(--lg-ok); font-weight: 600;
+  }
+
+  /* Таблицы Макро-уровня */
+  .table {
+    overflow-x: auto;
+    background: var(--lg-ground);
+    border: 1px solid var(--lg-hairline);
+    border-radius: 10px;
+  }
+  .table table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .table th, .table td { text-align: left; vertical-align: top; padding: 9px 12px; border-top: 1px solid var(--lg-hairline); }
+  .table tr:first-child th { border-top: 0; }
+  .table th { font-weight: 600; color: var(--lg-soft); font-size: 12px; background: var(--lg-strip); }
+
+  .lint-item {
+    display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; border-radius: 7px; font-size: 12.5px;
+  }
+  .lint-item.warn { background: var(--lg-warn-bg); color: var(--lg-warn); }
+  .lint-item.error { background: var(--lg-stop-bg); color: var(--lg-stop); }
+  .lint-item.ok { background: var(--lg-ok-bg); color: var(--lg-ok); }
 </style>
 </head>
 <body>
 
-<div class="wrap">
-  <header>
-    <div class="top-row">
-      <div class="eyebrow">Logos 1.0 · Формальная база архитектуры («ДРАКОН для нейросетей»)</div>
-      <button class="pill-btn" id="theme-btn" type="button">Тема: авто</button>
-    </div>
-    <h1 id="proj-title">Logos</h1>
-    <p class="soft" id="proj-summary"></p>
-    <div class="summary-card">
-      <div class="stats" id="stats-row"></div>
-      <div class="lint-list" id="lint-box"></div>
-    </div>
-  </header>
+<header class="topbar">
+  <div class="brand-row">
+    <span class="brand-title">Logos 1.2</span>
+    <span class="lg-badge lg-badge-ok" id="top-verify-badge">✓ Скелет 19/19 ОК</span>
+    <span class="lg-badge lg-badge-accent">deepFreeze: 0 скрытых состояний</span>
+  </div>
+  <div class="floor-tabs">
+    <button type="button" class="floor-btn" data-floor="floor-micro" aria-pressed="true">II. Цех узла (ДРАКОН + Такты + Регистры)</button>
+    <button type="button" class="floor-btn" data-floor="floor-macro" aria-pressed="false">I. Генплан Завода (Слои, Состояния, Дорожки)</button>
+    <button type="button" class="floor-btn" data-floor="floor-ai" aria-pressed="false">Генератор ТЗ и Проверка репозитория</button>
+    <button type="button" class="pill-btn" id="theme-btn">Тема: авто</button>
+  </div>
+</header>
 
-  <section id="sec-layers">
-    <h2>1. Слои, модули и разъёмы под плагины (Sockets)</h2>
-    <p class="soft">Зависимости разрешены только сверху вниз (от слоя 3 к слою 0). Фиолетовым пунктиром показаны
-      официальные <b>разъёмы расширения (Sockets)</b> — точки, куда втыкаются <code>Frame Generator</code>, генератор
-      шестерёнок и правила предприятия без правки ядра и <code>main.ts</code>.</p>
-    <div class="lg-canvas" id="fig-layers"></div>
-    <div class="table">
-      <table id="tbl-sockets">
-        <thead>
-          <tr>
-            <th>Разъём (Socket)</th>
-            <th>Модуль-владелец</th>
-            <th>Входной контракт плагина</th>
-            <th>Охраняемые инварианты</th>
-            <th>Примеры плагинов</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+<div class="wrap">
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       ЭТАЖ II: ЦЕХ УЗЛА (ПОЛНОРАЗМЕРНЫЙ ДРАКОН + ЛЕНТА ТАКТОВ + РЕГИСТРЫ)
+       ════════════════════════════════════════════════════════════════════════ -->
+  <main class="floor-pane active" id="floor-micro">
+
+    <!-- 1. Пульт сценариев и пошаговая Лента тактов (T1..Tn) -->
+    <div class="control-deck">
+      <div class="deck-row">
+        <div class="bar-pills" id="sc-pills">
+          <b style="font-size:12.5px;margin-right:4px">Сценарий:</b>
+        </div>
+        <div class="bar-pills">
+          <button type="button" class="pill-btn" id="btn-prev-tick" title="Клавиша ←">◀ Пред. такт</button>
+          <button type="button" class="pill-btn" id="btn-next-tick" title="Клавиша →">След. такт ▶</button>
+          <button type="button" class="pill-btn" id="btn-all-ticks" aria-pressed="true">Весь маршрут</button>
+        </div>
+      </div>
+      <div class="clock-tape" id="clock-tape"></div>
+    </div>
+
+    <!-- 2. Полноширинное полотно ДРАКОН в читаемом масштабе 1:1 -->
+    <div class="stage-box">
+      <div class="stage-header">
+        <div>
+          <b>Управляющий автомат (2-plan.js):</b> <span id="stage-scheme-title"></span>
+          <span class="soft" style="margin-left:8px" id="stage-tick-caption"></span>
+        </div>
+        <div class="bar-pills">
+          <button type="button" class="pill-btn" id="btn-skewer-only" aria-pressed="false">Главный маршрут (шампур)</button>
+          <button type="button" class="pill-btn" id="btn-zoom-fit" aria-pressed="false">Масштаб: 100% (читаемый)</button>
+        </div>
+      </div>
+      <div class="stage-scroll" id="drakon-stage"></div>
+    </div>
+
+    <!-- 3. Три приборных блока под схемой: Регистры State | Bag и Порты | Паспорт колбэка -->
+    <div class="instruments-grid">
+      <div class="inst-card">
+        <div class="inst-head">
+          <span>1. Регистры состояния (State: До → После)</span>
+          <span class="lg-badge lg-badge-ok" id="reg-changed-badge">0 изм.</span>
+        </div>
+        <table class="reg-table" id="tbl-reg-state">
+          <thead>
+            <tr><th>Регистр</th><th>До</th><th>После</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="inst-card">
+        <div class="inst-head">
+          <span>2. Рабочие регистры (Bag) и Шина портов (shelf)</span>
+          <span class="lg-badge lg-badge-accent" id="ports-count-badge">0 вызовов</span>
+        </div>
+        <table class="reg-table" id="tbl-reg-bag">
+          <thead>
+            <tr><th>Ячейка / Порт</th><th>Значение</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="inst-card">
+        <div class="inst-head">
+          <span>3. Паспорт и чистый код колбэка</span>
+          <span class="lg-badge lg-badge-ok" id="slot-kind-badge">guard</span>
+        </div>
+        <div class="inst-body" id="slot-inspector"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       ЭТАЖ I: ГЕНПЛАН ЗАВОДА (СЛОИ, РАЗЪЁМЫ ПЛАГИНОВ, СОСТОЯНИЯ, ДОРОЖКИ)
+       ════════════════════════════════════════════════════════════════════════ -->
+  <section class="floor-pane" id="floor-macro">
+    <div class="stage-box">
+      <div class="stage-header">
+        <b>1. Слои модулей и официальные разъёмы под плагины (Sockets)</b>
+        <span class="soft">Клик по модулю открывает его рентген</span>
+      </div>
+      <div class="stage-scroll" id="fig-layers" style="max-height:none"></div>
+    </div>
+
+    <div class="stage-box">
+      <div class="stage-header">
+        <b>2. Глобальный автомат состояний окна (Nav) и стек возврата Esc</b>
+        <span class="soft">Зелёный пунктир сверху — возврат по Esc; дорожки снизу — прямые переходы</span>
+      </div>
+      <div class="stage-scroll" id="fig-states" style="max-height:none"></div>
+    </div>
+
+    <div class="stage-box">
+      <div class="stage-header">
+        <b>3. Межмодульные шины и протоколы во времени (lanes-js)</b>
+      </div>
+      <div class="inst-body" id="lanes-list" style="gap:20px"></div>
     </div>
   </section>
 
-  <section id="sec-invariants">
-    <h2>2. Матрица «Решения → Инварианты → Автоматические стражи»</h2>
-    <p class="soft">В Logos правило без автоматического стража (<code>guard</code>) считается незащищённым: нейросеть
-      может обойти его и сказать «я так не думаю». Верификатор <code>Logos.lint()</code> помечает такие места предупреждением.</p>
+  <!-- ════════════════════════════════════════════════════════════════════════
+       ЭТАЖ III: СВЕРКА С РЕПОЗИТОРИЕМ, ИНВАРИАНТЫ И ГЕНЕРАТОР ТЗ ДЛЯ ИИ
+       ════════════════════════════════════════════════════════════════════════ -->
+  <section class="floor-pane" id="floor-ai">
+    <div class="control-deck">
+      <b>Результаты автоматической сверки модели с живым кодом Keel (Logos.lint + Logos.verifyRepo):</b>
+      <div id="lint-box" style="display:grid;gap:6px"></div>
+    </div>
+
     <div class="table">
       <table id="tbl-invariants">
         <thead>
@@ -162,94 +348,19 @@
         <tbody></tbody>
       </table>
     </div>
-  </section>
 
-  <section id="sec-states">
-    <h2>3. Автомат состояний окна (Nav) и стек возврата Esc</h2>
-    <p class="soft">Все состояния достижимы из начального (<code>● Сборка / Проект</code>). Сверху зелёным пунктиром —
-      обязательные пути возврата по <code>Esc</code>; снизу на горизонтальных дорожках — прямые переходы с условиями допустимости.</p>
-    <div class="lg-canvas" id="fig-states"></div>
-  </section>
-
-  <section id="sec-lanes">
-    <h2>4. Протоколы взаимодействия во времени (lanes-js)</h2>
-    <p class="soft">Как участники (человек, окно, командный слой, плагин, ядро и хранилище) общаются по шагам без пересечения стрелок.</p>
-    <div id="lanes-list" style="display:grid;gap:22px"></div>
-  </section>
-
-  <section id="sec-drakon">
-    <h2>5. Алгоритмы и правила решений в нотации ДРАКОН (drakon-js)</h2>
-    <p class="soft">Внутренняя логика узлов: шампур слева — главный успешный путь; чем правее — тем хуже исход (отказы и ранние выходы).
-      Вставка <code>Продуктовый коммит и выдача PN</code> в силуэте ссылается на примитив ниже (проверяется <code>Logos.lint</code>).</p>
-    <div id="drakon-list" style="display:grid;gap:24px"></div>
-  </section>
-
-  <section id="sec-terms">
-    <h2>6. Словарь терминов и констант (одно слово = один смысл)</h2>
-    <div class="table">
-      <table id="tbl-terms">
-        <thead>
-          <tr>
-            <th>Идентификатор</th>
-            <th>Термин</th>
-            <th>Точное определение в модели</th>
-            <th>Привязка в коде / решению</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="control-deck">
+      <b>Генератор «прошивки» (ТЗ-контракта) для ИИ-агента:</b>
+      <div class="bar-pills" id="brief-pills"></div>
+      <pre id="brief-out"></pre>
     </div>
   </section>
 
-  <section id="sec-brief">
-    <h2>7. Генератор «прошивки» (ТЗ-контракта) для ИИ-агента</h2>
-    <p class="soft">Вместо пересказа расплывчатых <code>.md</code>-документов агент получает вычисленный срез из базы
-      <code>Logos.brief(KeelModel, moduleId)</code>: только разрешённые импорты, инварианты со стражами и контракты разъёмов.</p>
-    <div class="bar-pills" id="brief-pills"></div>
-    <pre id="brief-out"></pre>
-  </section>
 </div>
 
 <div id="xray-panel">
   <h3 id="xray-title">Module X-ray</h3>
   <div id="xray-content"></div>
-  <section id="sec-runtime">
-    <h2>8. Живой стенд: Исполняемый скелет ДРАКОН + Чистые колбэки (Logos.Runtime)</h2>
-    <p class="soft">Демонстрация архитектуры «Сверху вниз»: схема ДРАКОН в <code>2-plan.js</code> — это не просто картинка,
-      а <b>исполняемый диспетчер</b>. Каждая икона вызывает чистый колбэк из <code>impl/</code> (с заморозкой входа через
-      <code>deepFreeze</code> — скрытые состояния невозможны). Выбери сценарий ниже: движок реально исполнит схему и
-      подсветит зелёным пройденный маршрут прямо на чертеже.</p>
-    <div class="summary-card" id="rt-verify-summary"></div>
-    <div class="bar-pills" id="rt-scenario-pills"></div>
-    <div id="fig-rt-drakon"></div>
-    <div class="rt-grid">
-      <div class="rt-card">
-        <h4>Трасса исполнения по иконам схемы (trace)</h4>
-        <div id="rt-trace-list" style="display:grid;gap:5px"></div>
-      </div>
-      <div class="rt-card">
-        <h4>Вход → Новое состояние (State) и Порты (shelf)</h4>
-        <pre id="rt-state-out" style="font-size:12px"></pre>
-      </div>
-    </div>
-    <div class="table">
-      <table id="tbl-rt-files">
-        <thead>
-          <tr>
-            <th>Файл модуля (examples/nav-skeleton/)</th>
-            <th>Архитектурная роль</th>
-            <th>Контроль чистоты</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <div id="xray-panel">
-    <h3 id="xray-title">Module X-ray</h3>
-    <div id="xray-content"></div>
-  </div>
 </div>
 
 <script src="vendor/drakon.js"></script>
@@ -269,61 +380,296 @@
 (function () {
   const M = window.KeelModel;
   const Lg = window.Logos;
+  const D = window.Drakon;
+  const Rt = window.LogosRuntime;
+  const Unit = window.NavSkeletonUnit;
   const V = window.KeelVerifySnapshot || { findings: [], moduleStats: {} };
 
-  // ... (rest of the script)
+  // Переключение этажей
+  const floorBtns = document.querySelectorAll('.floor-btn');
+  function setFloor(floorId) {
+    floorBtns.forEach((b) => b.setAttribute('aria-pressed', b.dataset.floor === floorId ? 'true' : 'false'));
+    document.querySelectorAll('.floor-pane').forEach((p) => p.classList.toggle('active', p.id === floorId));
+  }
+  floorBtns.forEach((b) => { b.onclick = () => setFloor(b.dataset.floor); });
 
-  document.getElementById('proj-title').textContent = 'Logos · ' + M.title;
-  document.getElementById('proj-summary').textContent = M.summary;
+  // ── ЭТАЖ II: ЦЕХ УЗЛА (ДРАКОН + ПОШАГОВАЯ ЛЕНТА ТАКТОВ + ТАБЛИЦА РЕГИСТРОВ) ──
+  const scheme = Unit.plan.schemes.applyNav;
+  document.getElementById('stage-scheme-title').textContent = scheme.title;
 
-  // 0. Сводка и результаты Logos.lint
-  const stats = [
-    [M.decisions.length, 'решений'],
-    [M.invariants.length, 'инвариантов'],
-    [M.modules.length, 'модулей'],
-    [M.sockets.length, 'разъёмов плагинов'],
-    [M.states.length, 'состояний'],
-    [M.protocols.length, 'протоколов (Lanes)'],
-    [M.algorithms.length, 'схем ДРАКОН'],
-  ];
-  document.getElementById('stats-row').innerHTML = stats
-    .map(([n, w]) => `<div class="stat"><b>${n}</b><span>${w}</span></div>`)
+  const drakonStage = document.getElementById('drakon-stage');
+  drakonStage.innerHTML = D.svg(scheme);
+
+  const contractMap = new Map(Unit.contracts.map((c) => [c.id, c]));
+  let currentScenario = Unit.schema.scenarios[1]; // Сценарий 2 по умолчанию
+  let currentRun = null;
+  let activeTickIdx = -1; // -1 означает «Весь маршрут целиком»
+
+  const scPills = document.getElementById('sc-pills');
+  const clockTape = document.getElementById('clock-tape');
+  const btnAllTicks = document.getElementById('btn-all-ticks');
+
+  function formatVal(v) {
+    if (v === undefined) return '—';
+    if (typeof v === 'string') return `"${v}"`;
+    return JSON.stringify(v);
+  }
+
+  function findSlotFnSource(slotId) {
+    const c = contractMap.get(slotId);
+    if (!c) return '';
+    if (c.kind === 'guard' && Unit.impl.guards[slotId]) return Unit.impl.guards[slotId].toString();
+    if (c.kind === 'step' && Unit.impl.steps[slotId]) return Unit.impl.steps[slotId].toString();
+    if (c.kind === 'port' && c.port && Unit.impl.ports[c.port] && Unit.impl.ports[c.port][slotId]) {
+      return Unit.impl.ports[c.port][slotId].toString();
+    }
+    return '';
+  }
+
+  function renderSlotInspector(slotId) {
+    const box = document.getElementById('slot-inspector');
+    const badge = document.getElementById('slot-kind-badge');
+    const cleanId = slotId ? slotId.split('.').pop() : 'canSwitchTab';
+    const c = contractMap.get(cleanId) || Unit.contracts[2];
+    badge.textContent = `${c.kind}${c.port ? ' · ' + c.port : ''} · ✓ ${(c.cases || []).length}/${(c.cases || []).length}`;
+    const src = findSlotFnSource(c.id);
+    box.innerHTML =
+      `<div><b><code>${c.id}(state, bag, world)</code></b><br><span class="soft" style="font-size:12px">${c.title}</span></div>` +
+      `<div style="font-size:12px">` +
+      (c.reads && c.reads.length ? `<div><b>Читает:</b> ${c.reads.map((r) => `<code>${r}</code>`).join(', ')}</div>` : '') +
+      (c.writes && c.writes.length ? `<div><b>Пишет:</b> ${c.writes.map((w) => `<code>${w}</code>`).join(', ')}</div>` : '') +
+      `</div>` +
+      `<pre>${src}</pre>` +
+      `<div style="font-size:11.5px;color:var(--lg-soft)"><b>Контрактные тесты (${(c.cases || []).length}):</b> ` +
+      (c.cases || []).map((tc) => `<span class="lg-badge lg-badge-ok" style="margin-right:4px">✓ ${tc.title}</span>`).join('') +
+      `</div>`;
+  }
+
+  function updateMicroView() {
+    const trace = currentRun.trace;
+    const isAll = activeTickIdx < 0 || activeTickIdx >= trace.length;
+    btnAllTicks.setAttribute('aria-pressed', isAll ? 'true' : 'false');
+
+    // 1. Обновляем кнопки на Ленте тактов
+    clockTape.querySelectorAll('.tick-btn').forEach((btn, idx) => {
+      btn.classList.toggle('current', !isAll && idx === activeTickIdx);
+      btn.classList.toggle('done', isAll || idx < activeTickIdx);
+    });
+
+    // 2. Подсвечиваем пройденные иконы и текущий такт на полноразмерной схеме ДРАКОН
+    const visibleTrace = isAll ? trace : trace.slice(0, activeTickIdx + 1);
+    const hitWheres = new Set(visibleTrace.map((t) => t.where));
+    const currentWhere = !isAll && trace[activeTickIdx] ? trace[activeTickIdx].where : null;
+
+    const svgEl = drakonStage.querySelector('svg.dk');
+    let currentTargetNode = null;
+    if (svgEl) {
+      svgEl.classList.add('dk-tracing');
+      svgEl.querySelectorAll('.dk-node').forEach((node) => {
+        const w = node.getAttribute('data-where');
+        const isCurrent = Boolean(w && currentWhere && w === currentWhere);
+        const isHit = Boolean(w && hitWheres.has(w));
+        node.classList.toggle('dk-trace-current', isCurrent);
+        node.classList.toggle('dk-trace-hit', isHit && !isCurrent);
+        if (isCurrent) currentTargetNode = node;
+      });
+    }
+
+    // Плавно центрируем область прокрутки схемы на активной иконе, если она за краем
+    if (currentTargetNode && !drakonStage.classList.contains('fit-width')) {
+      const bbox = currentTargetNode.getBBox();
+      const targetLeft = Math.max(0, bbox.x + bbox.width / 2 - drakonStage.clientWidth / 2);
+      const targetTop = Math.max(0, bbox.y + bbox.height / 2 - drakonStage.clientHeight / 2);
+      drakonStage.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+    }
+
+    // 3. Вычисляем состояние «До → После» (для всего прогона или для конкретного такта T_k)
+    const activeTick = !isAll ? trace[activeTickIdx] : trace[trace.length - 1];
+    const stateBefore = isAll ? currentScenario.state : activeTick.beforeState;
+    const stateAfter = isAll ? currentRun.state : activeTick.afterState;
+    const bagAfter = isAll ? currentRun.bag : activeTick.bag;
+    const effectsNow = isAll ? currentRun.effects : activeTick.effects;
+
+    document.getElementById('stage-tick-caption').textContent = isAll
+      ? `Полный маршрут (${trace.length} тактов → «${currentRun.outcome}»)`
+      : `Такт T${activeTick.step}: ${activeTick.call ? activeTick.call + '()' : activeTick.where} → ${activeTick.detail}`;
+
+    const rows = [
+      ['state.open.kind', stateBefore.open.kind, stateAfter.open.kind],
+      ['state.open.path', stateBefore.open.path, stateAfter.open.path],
+      ['state.open.pick', stateBefore.open.pick, stateAfter.open.pick],
+      ['state.tab', stateBefore.tab, stateAfter.tab],
+      ['state.shown', stateBefore.shown, stateAfter.shown],
+      ['state.rev', stateBefore.rev, stateAfter.rev],
+      ['[derived] modeOf', Unit.schema.derived.modeOf(stateBefore), Unit.schema.derived.modeOf(stateAfter)],
+    ];
+
+    let changedCount = 0;
+    const stateTbody = document.querySelector('#tbl-reg-state tbody');
+    stateTbody.innerHTML = rows
+      .map(([name, bVal, aVal]) => {
+        const bStr = formatVal(bVal);
+        const aStr = formatVal(aVal);
+        const diff = bStr !== aStr;
+        if (diff) changedCount++;
+        return `<tr class="${diff ? 'changed' : ''}"><td>${name}</td><td>${bStr}</td><td>${aStr}</td></tr>`;
+      })
+      .join('');
+    document.getElementById('reg-changed-badge').textContent = `${changedCount} изм.`;
+
+    // 4. Таблица рабочих регистров Bag и вызовов шины портов (D.shelf)
+    const bagTbody = document.querySelector('#tbl-reg-bag tbody');
+    const bagRows = [];
+    for (const [k, v] of Object.entries(bagAfter || {})) {
+      if (k === 'prev') continue;
+      bagRows.push(`<tr><td>bag.${k}</td><td>${formatVal(v)}</td></tr>`);
+    }
+    for (const eff of effectsNow || []) {
+      bagRows.push(`<tr class="changed"><td>🔌 shelf:${eff.port}.${eff.call}</td><td>${formatVal(eff.payload)}</td></tr>`);
+    }
+    bagTbody.innerHTML = bagRows.join('') || '<tr><td colspan="2" class="soft">Пусто</td></tr>';
+    document.getElementById('ports-count-badge').textContent = `${(effectsNow || []).length} портов`;
+
+    // 5. Обновляем паспорт колбэка
+    const callToInspect = (activeTick && activeTick.call) || 'canSwitchTab';
+    renderSlotInspector(callToInspect);
+  }
+
+  function loadScenario(sc) {
+    currentScenario = sc;
+    currentRun = Rt.run(scheme, Unit.impl, sc.state, sc.bag, sc.world);
+    activeTickIdx = -1;
+
+    for (const b of scPills.querySelectorAll('button[data-sc]')) {
+      b.setAttribute('aria-pressed', b.dataset.sc === sc.id ? 'true' : 'false');
+    }
+
+    // Строим кнопки тактов на ленте (только содержательные шаги с колбэками и концом)
+    clockTape.innerHTML = '';
+    currentRun.trace.forEach((t, idx) => {
+      if (!t.call && t.iconType !== 'end') return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tick-btn done';
+      const shortCall = t.call ? t.call + '()' : t.detail;
+      btn.innerHTML = `<b>T${t.step}</b> <span>${shortCall}</span>`;
+      btn.onclick = () => {
+        activeTickIdx = idx;
+        updateMicroView();
+      };
+      clockTape.appendChild(btn);
+    });
+
+    updateMicroView();
+  }
+
+  for (const sc of Unit.schema.scenarios) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pill-btn';
+    btn.dataset.sc = sc.id;
+    btn.textContent = sc.title;
+    btn.onclick = () => loadScenario(sc);
+    scPills.appendChild(btn);
+  }
+
+  document.getElementById('btn-all-ticks').onclick = () => {
+    activeTickIdx = -1;
+    updateMicroView();
+  };
+  document.getElementById('btn-prev-tick').onclick = () => {
+    const trace = currentRun.trace;
+    if (activeTickIdx <= 0) activeTickIdx = trace.length - 1;
+    else activeTickIdx--;
+    updateMicroView();
+  };
+  document.getElementById('btn-next-tick').onclick = () => {
+    const trace = currentRun.trace;
+    if (activeTickIdx < 0 || activeTickIdx >= trace.length - 1) activeTickIdx = 0;
+    else activeTickIdx++;
+    updateMicroView();
+  };
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (!document.getElementById('floor-micro').classList.contains('active')) return;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      document.getElementById('btn-prev-tick').click();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      document.getElementById('btn-next-tick').click();
+    }
+  });
+
+  // Клик по иконе прямо на схеме ДРАКОН открывает её колбэк и такт
+  drakonStage.addEventListener('click', (e) => {
+    const node = e.target.closest('.dk-node[data-where]');
+    if (!node || !currentRun) return;
+    const w = node.getAttribute('data-where');
+    const foundIdx = currentRun.trace.findIndex((t) => t.where === w);
+    if (foundIdx >= 0) {
+      activeTickIdx = foundIdx;
+      updateMicroView();
+    }
+  });
+
+  // Переключатели «Главный маршрут (шампур)» и «Масштаб: 100% / Вписать»
+  const btnSkewer = document.getElementById('btn-skewer-only');
+  btnSkewer.onclick = () => {
+    const on = drakonStage.classList.toggle('dk-skewer-only');
+    // Также переключаем класс на .dk-canvas или самом контейнере для правила CSS
+    const svg = drakonStage.querySelector('svg.dk');
+    if (svg) {
+      svg.querySelectorAll('.dk-side').forEach((el) => {
+        el.style.opacity = on ? '0.14' : '';
+      });
+    }
+    btnSkewer.setAttribute('aria-pressed', on ? 'true' : 'false');
+  };
+
+  const btnZoomFit = document.getElementById('btn-zoom-fit');
+  btnZoomFit.onclick = () => {
+    const fitted = drakonStage.classList.toggle('fit-width');
+    btnZoomFit.setAttribute('aria-pressed', fitted ? 'true' : 'false');
+    btnZoomFit.textContent = fitted ? 'Масштаб: вписан по ширине' : 'Масштаб: 100% (читаемый)';
+  };
+
+  loadScenario(Unit.schema.scenarios[1]);
+
+  // ── ЭТАЖ I и III: МАКРО-АРХИТЕКТУРА И ГЕНЕРАТОР ТЗ ──
+  const issues = Lg.lint(M);
+  document.getElementById('fig-layers').innerHTML = Lg.layersSvg(M, issues, V);
+  document.getElementById('fig-states').innerHTML = Lg.statesSvg(M, issues);
+
+  const lanesList = document.getElementById('lanes-list');
+  for (const p of M.protocols) {
+    const wrap = document.createElement('div');
+    const head = document.createElement('h4');
+    head.style.margin = '0 0 8px';
+    head.innerHTML = `${p.scheme.title} <code>${p.id}</code>`;
+    const fig = document.createElement('div');
+    wrap.appendChild(head);
+    wrap.appendChild(fig);
+    lanesList.appendChild(wrap);
+    window.Lanes.figure(fig, p.scheme);
+  }
+
+  const lintBox = document.getElementById('lint-box');
+  const allFindings = issues.concat(V.findings || []);
+  lintBox.innerHTML = allFindings
+    .map(
+      (i) =>
+        `<div class="lint-item ${i.level}"><b>${i.level === 'error' ? '✗ ОШИБКА' : '⚠ ВНИМАНИЕ'}</b> <code>${i.where}</code> <span>${i.message}</span></div>`
+    )
     .join('');
 
-  const issues = Lg.lint(M);
-  const lintBox = document.getElementById('lint-box');
-  if (issues.length === 0) {
-    lintBox.innerHTML = `<div class="lint-item ok">✓ Все проверки Logos.lint(), Drakon.lint() и Lanes.lint() пройдены без замечаний.</div>`;
-  } else {
-    lintBox.innerHTML = issues
-      .map(
-        (i) =>
-          `<div class="lint-item ${i.level}"><b>${i.level === 'error' ? '✗ ОШИБКА' : '⚠ ВНИМАНИЕ'}</b> <code>${i.where}</code> <span>${i.message}</span></div>`
-      )
-      .join('');
-  }
-
-  // 1. Слои и сокеты плагинов
-  document.getElementById('fig-layers').innerHTML = Lg.layersSvg(M, issues, V);
-  const sockBody = document.querySelector('#tbl-sockets tbody');
-  for (const s of M.sockets) {
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td><span class="lg-badge lg-badge-socket">🔌 ${s.id}</span><br><span class="soft">${s.title}</span></td>` +
-      `<td><code>${s.host}</code></td>` +
-      `<td>${s.contract}</td>` +
-      `<td>${s.invariants.map((id) => `<code>${id}</code>`).join(' ')}</td>` +
-      `<td class="soft">${s.examples.join('; ')}</td>`;
-    sockBody.appendChild(tr);
-  }
-
-  // 2. Таблица инвариантов
   const invBody = document.querySelector('#tbl-invariants tbody');
   for (const inv of M.invariants) {
     const tr = document.createElement('tr');
     const guardCell = inv.guard
       ? `<span class="lg-badge lg-badge-ok">✓ Ограждён</span><br><code>${inv.guard}</code>`
-      : `<span class="lg-badge lg-badge-warn">⚠ Нет стража</span><br><span class="soft">Требуется тест или AST-проверка</span>`;
+      : `<span class="lg-badge lg-badge-warn">⚠ Нет стража</span>`;
     tr.innerHTML =
       `<td><b>${inv.id}</b></td>` +
       `<td><code>${inv.decision}</code></td>` +
@@ -333,53 +679,6 @@
     invBody.appendChild(tr);
   }
 
-  // 3. Автомат состояний
-  document.getElementById('fig-states').innerHTML = Lg.statesSvg(M, issues);
-
-  // 4. Протоколы Lanes
-  const lanesList = document.getElementById('lanes-list');
-  for (const p of M.protocols) {
-    const wrap = document.createElement('div');
-    const head = document.createElement('h3');
-    head.innerHTML = `${p.scheme.title} <code style="margin-left:6px">${p.id}</code>`;
-    const fig = document.createElement('div');
-    wrap.appendChild(head);
-    wrap.appendChild(fig);
-    lanesList.appendChild(wrap);
-    window.Lanes.figure(fig, p.scheme);
-    const fitBtn = fig.querySelector('.ln-fit');
-    if (fitBtn && p.scheme.lanes.length > 4) fitBtn.click();
-  }
-
-  // 5. Алгоритмы ДРАКОН
-  const drakonList = document.getElementById('drakon-list');
-  for (const a of M.algorithms) {
-    const wrap = document.createElement('div');
-    wrap.id = a.id;
-    const head = document.createElement('h3');
-    head.innerHTML = `${a.scheme.title} <code style="margin-left:6px">${a.id}</code> ${a.invariant ? `<span class="lg-badge lg-badge-accent">${a.invariant}</span>` : ''}`;
-    const fig = document.createElement('div');
-    wrap.appendChild(head);
-    wrap.appendChild(fig);
-    drakonList.appendChild(wrap);
-    window.Drakon.figure(fig, a.scheme);
-    const fitBtn = fig.querySelector('.dk-fit');
-    if (fitBtn && a.scheme.kind === 'silhouette') fitBtn.click();
-  }
-
-  // 6. Словарь терминов
-  const termsBody = document.querySelector('#tbl-terms tbody');
-  for (const t of M.terms) {
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td><code>${t.id}</code></td>` +
-      `<td><b>${t.title}</b></td>` +
-      `<td>${t.meaning}</td>` +
-      `<td><code>${t.const || '—'}</code></td>`;
-    termsBody.appendChild(tr);
-  }
-
-  // 7. Генератор ТЗ для ИИ
   const pillsBox = document.getElementById('brief-pills');
   const briefOut = document.getElementById('brief-out');
   const targets = [['', 'Вся система'], ...M.modules.map((m) => [m.id, `${m.id} (${m.title})`])];
@@ -411,132 +710,6 @@
     else document.documentElement.removeAttribute('data-theme');
     themeBtn.textContent = 'Тема: ' + (m === 'light' ? 'светлая' : m === 'dark' ? 'тёмная' : 'авто');
   };
-
-  // Интерактивность: X-ray
-  const xrayPanel = document.getElementById('xray-panel');
-  const xrayTitle = document.getElementById('xray-title');
-  const xrayContent = document.getElementById('xray-content');
-
-  function openXray(targetEl) {
-    const modId = targetEl.dataset.module;
-    const stateId = targetEl.dataset.state;
-    const issues = JSON.parse(targetEl.dataset.issues || '[]');
-    
-    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-    targetEl.classList.add('selected');
-    
-    if (modId) {
-        const mod = M.modules.find(m => m.id === modId);
-        xrayTitle.textContent = 'Рентген: ' + mod.id;
-        const ms = V.moduleStats[modId] || { findings: [], files: 0, lines: 0 };
-        xrayContent.innerHTML = `
-          <p><b>${mod.title}</b><br><span class="soft">${mod.role}</span></p>
-          <div class="stats">
-            <div class="stat"><b>${ms.files}</b><span>файлов</span></div>
-            <div class="stat"><b>${ms.lines}</b><span>строк</span></div>
-          </div>
-          ${(issues.length || ms.findings.length) ? '<h5>Нарушения:</h5>' : ''}
-          ${issues.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
-          ${ms.findings.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
-        `;
-    } else if (stateId) {
-        xrayTitle.textContent = 'Состояние: ' + stateId;
-        xrayContent.innerHTML = `
-          ${issues.length ? '<h5>Проблемы автомата:</h5>' : '<p class="soft">Состояние валидно.</p>'}
-          ${issues.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
-        `;
-    }
-    xrayPanel.style.display = 'block';
-  }
-
-  document.addEventListener('click', (e) => {
-    const target = e.target.closest('[data-module], [data-state]');
-    if (target) {
-      openXray(target);
-    } else if (!e.target.closest('#xray-panel')) {
-      xrayPanel.style.display = 'none';
-      document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-    }
-  });
-
-  // 8. Живой стенд исполняемого скелета (Logos.Runtime + NavSkeletonUnit)
-  const Rt = window.LogosRuntime;
-  const Unit = window.NavSkeletonUnit;
-  if (Rt && Unit) {
-    const vRes = Rt.verifySkeleton(Unit);
-    const vBox = document.getElementById('rt-verify-summary');
-    vBox.innerHTML =
-      `<div class="lint-item ${vRes.ok ? 'ok' : 'error'}">` +
-      `<b>${vRes.ok ? '✓ Скелет и колбэки верифицированы' : '✗ Ошибка верификации'}</b> ` +
-      `<span>Проверено привязок икон и контрактных тестов: <b>${vRes.passed.length} ОК</b>, ошибок: <b>${vRes.issues.length}</b> · Защита <code>deepFreeze</code> включена (0 скрытых состояний)</span>` +
-      `</div>`;
-
-    const filesBody = document.querySelector('#tbl-rt-files tbody');
-    for (const f of Unit.filesLayout) {
-      const tr = document.createElement('tr');
-      const isImpl = f.path.startsWith('impl/');
-      tr.innerHTML =
-        `<td><code>${f.path}</code></td>` +
-        `<td>${f.role}</td>` +
-        `<td><span class="lg-badge ${isImpl ? 'lg-badge-ok' : 'lg-badge-accent'}">${isImpl ? '✓ 0 let/class/this/DOM' : 'Чертёж / Закон'}</span></td>`;
-      filesBody.appendChild(tr);
-    }
-
-    const rtFig = document.getElementById('fig-rt-drakon');
-    window.Drakon.figure(rtFig, Unit.plan.schemes.applyNav);
-    const rtFitBtn = rtFig.querySelector('.dk-fit');
-    if (rtFitBtn) rtFitBtn.click();
-
-    const scPills = document.getElementById('rt-scenario-pills');
-    const traceList = document.getElementById('rt-trace-list');
-    const stateOut = document.getElementById('rt-state-out');
-
-    function runScenario(sc) {
-      for (const b of scPills.querySelectorAll('button')) {
-        b.setAttribute('aria-pressed', b.dataset.sc === sc.id ? 'true' : 'false');
-      }
-      const res = Rt.run(Unit.plan.schemes.applyNav, Unit.impl, sc.state, sc.bag, sc.world);
-      const hitWheres = new Set(res.trace.map((t) => t.where));
-
-      const svgEl = rtFig.querySelector('svg.dk');
-      if (svgEl) {
-        svgEl.classList.add('dk-tracing');
-        svgEl.querySelectorAll('.dk-node').forEach((node) => {
-          const w = node.getAttribute('data-where');
-          node.classList.toggle('dk-trace-hit', Boolean(w && hitWheres.has(w)));
-        });
-      }
-
-      traceList.innerHTML = res.trace
-        .filter((t) => t.call || t.iconType === 'branch' || t.iconType === 'end')
-        .map(
-          (t) =>
-            `<div class="rt-step"><span><b>#${t.step}</b> ${t.call ? `<code>${t.call}()</code>` : t.where}</span><span class="soft">${t.detail}</span></div>`
-        )
-        .join('');
-
-      stateOut.textContent =
-        `// Входное действие (bag.action):\n` +
-        JSON.stringify(sc.bag.action, null, 2) +
-        `\n\n// Новое состояние (res.state) + вычисленный mode="${Unit.schema.derived.modeOf(res.state)}":\n` +
-        JSON.stringify(res.state, null, 2) +
-        `\n\n// Вызовы внешних портов (shelf -> effects):\n` +
-        JSON.stringify(res.effects, null, 2);
-    }
-
-    for (const sc of Unit.schema.scenarios) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'pill-btn';
-      btn.dataset.sc = sc.id;
-      btn.textContent = sc.title;
-      btn.onclick = () => runScenario(sc);
-      scPills.appendChild(btn);
-    }
-    runScenario(Unit.schema.scenarios[1]); // По умолчанию покажем сценарий №2 (отказ вкладки чертежа в режиме сборки)
-  }
-
-
 })();
 </script>
 </body>

@@ -128,12 +128,19 @@ svg.lg .lg-pill { fill: var(--lg-strip); stroke: var(--lg-hairline); stroke-widt
 .lg-mod-ok rect { stroke: var(--lg-ok); }
 
 /* Подсветка живой трассы исполнения Logos.Runtime поверх схемы ДРАКОН */
-svg.dk.dk-tracing .dk-node { opacity: 0.25; transition: opacity 0.18s ease; }
+svg.dk.dk-tracing .dk-node { opacity: 0.28; transition: opacity 0.18s ease; cursor: pointer; }
+svg.dk.dk-tracing .dk-node:hover { opacity: 0.85; }
 svg.dk.dk-tracing .dk-node.dk-trace-hit { opacity: 1; }
 svg.dk.dk-tracing .dk-node.dk-trace-hit .dk-ic {
   stroke: var(--lg-ok) !important;
-  stroke-width: 2.6px !important;
-  filter: drop-shadow(0 0 4px rgba(15, 123, 15, 0.25));
+  stroke-width: 2.4px !important;
+}
+svg.dk.dk-tracing .dk-node.dk-trace-current { opacity: 1; }
+svg.dk.dk-tracing .dk-node.dk-trace-current .dk-ic {
+  stroke: var(--lg-accent) !important;
+  stroke-width: 3.2px !important;
+  fill: var(--lg-accent-bg) !important;
+  filter: drop-shadow(0 0 6px rgba(15, 108, 189, 0.35));
 }
 
 .rt-grid {
