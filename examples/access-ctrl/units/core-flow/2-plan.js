@@ -1,4 +1,7 @@
-/* 2-plan.js — Управляющий автомат шлюза на языке ДРАКОН (Силуэт из 4 веток, 0 вычислений внутри схемы). */
+/* 2-plan.js — Управляющий автомат шлюза на языке ДРАКОН.
+   Строго по Паронджанову («чем правее — тем хуже»):
+   - На главном шампуре каждой ветки — только штатный «счастливый путь» (норма → допуск разрешён → завершение).
+   - Все аварии, блокировки и отказы уходят строго ВПРАВО в ветки «нет» (no). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     const D = require('../../../../vendor/drakon.js');
@@ -15,39 +18,41 @@
       {
         name: 'Аварийный контур',
         items: [
-          D.q('Нажата кнопка Panic или взлом двери?', {
-            call: 'isEmergencyTrigger',
-            yes: [
+          D.q('Датчики взлома и кнопка Panic в норме?', {
+            down: 'да, в норме',
+            right: 'нет, авария!',
+            call: 'isSafetyNormal',
+            no: [
               D.act('Включить режим Alarm и флаг сирены', { k: 'stop', call: 'enterAlarm' }),
               D.shelf('hw', 'Включить сирену и заблокировать ригель', { k: 'stop', call: 'soundSiren' }),
+              D.go('Завершение такта'),
             ],
-            no: [],
           }),
-          D.q('Шлюз перешёл в экстренный Alarm?', {
-            call: 'isEmergencyTriggeredNow',
-            no: [D.go('Режим шлюза')],
-          }),
-          D.go('Завершение такта'),
+          D.go('Режим шлюза'),
         ],
       },
       {
         name: 'Режим шлюза',
         items: [
-          D.q('Шлюз сейчас в Alarm или Lockout?', {
-            call: 'isInLockedDownMode',
-            no: [D.go('Проверка допуска')],
-          }),
-          D.q('Предъявлен валидный мастер-ключ сброса?', {
-            call: 'isMasterResetValid',
+          D.q('Шлюз в штатном режиме допуска?', {
+            down: 'да, штатный',
+            right: 'нет, блокировка',
+            call: 'isOperationalMode',
             no: [
-              D.act('Записать отказ: шлюз заблокирован', { k: 'stop', call: 'noteBlockedAttempt' }),
-              D.shelf('hw', 'Подать длинный сигнал отказа', { k: 'stop', call: 'beepReject' }),
+              D.q('Предъявлен валидный мастер-ключ сброса?', {
+                call: 'isMasterResetValid',
+                no: [
+                  D.act('Записать отказ: шлюз заблокирован', { k: 'stop', call: 'noteBlockedAttempt' }),
+                  D.shelf('hw', 'Подать длинный сигнал отказа', { k: 'stop', call: 'beepReject' }),
+                  D.go('Завершение такта'),
+                ],
+              }),
+              D.act('Сбросить Alarm/Lockout в Armed, обнулить ошибки и сирену', { k: 'new', call: 'resetToArmed' }),
+              D.shelf('hw', 'Отключить сирену и взвести штатную охрану', { call: 'silenceSiren' }),
               D.go('Завершение такта'),
             ],
           }),
-          D.act('Сбросить Alarm/Lockout в Armed, обнулить ошибки и сирену', { k: 'new', call: 'resetToArmed' }),
-          D.shelf('hw', 'Отключить сирену и взвести штатную охрану', { call: 'silenceSiren' }),
-          D.go('Завершение такта'),
+          D.go('Проверка допуска'),
         ],
       },
       {
@@ -67,13 +72,15 @@
                     ],
                     no: [
                       D.act('Увеличить счётчик ошибок PIN (attempts + 1)', { call: 'incrementAttempts' }),
-                      D.q('Достигнут предел 3 ошибок подряд?', {
-                        call: 'isMaxAttemptsReached',
-                        yes: [
+                      D.q('Остались попытки до блокировки (< 3)?', {
+                        down: 'да, есть попытки',
+                        right: 'нет, 3-я ошибка',
+                        call: 'hasAttemptsLeft',
+                        yes: [D.shelf('hw', 'Короткий сигнал неверного PIN', { k: 'stop', call: 'beepReject' })],
+                        no: [
                           D.act('Перевести шлюз в режим Lockout', { k: 'stop', call: 'enterLockout' }),
                           D.shelf('hw', 'Включить блокировку клавиатуры на 30 с', { k: 'stop', call: 'lockKeypad' }),
                         ],
-                        no: [D.shelf('hw', 'Короткий сигнал неверного PIN', { k: 'stop', call: 'beepReject' })],
                       }),
                     ],
                   }),
@@ -123,7 +130,7 @@
     {
       id: 'access-ctrl-flow',
       notes: [
-        'Ветка 1 перехватывает физический взлом и кнопку Panic в любом состоянии. Ветка 2 не пускает обычный PIN, пока шлюз в Alarm или Lockout.',
+        'Главный маршрут (шампур) каждой ветки идёт строго прямо сверху вниз без прерываний: Норма датчиков → Штатный режим → Верный PIN → Завершение такта. Все аварии и отказы уходят вправо.',
       ],
     }
   );

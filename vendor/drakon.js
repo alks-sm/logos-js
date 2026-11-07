@@ -489,10 +489,13 @@
     const say = (level, where, message) => found.push({ level, where, message });
     const branches = d.kind === 'silhouette' ? new Set(d.branches.map((b) => b.name)) : new Set();
 
-    function walk(items, where, top) {
+    function walk(items, where, top, onSkewer) {
       items.forEach((it, i) => {
         const at = `${where} › ${it.text || it.to || it.t}`;
         const last = i === items.length - 1;
+        if (onSkewer && it.k === 'stop') {
+          say('warn', at, 'Икона отказа (stop) стоит на главном маршруте (шампуре): по правилу «чем правее — тем хуже» отказы и аварии уводят в правую ветку (no).');
+        }
         if (it.t === 'goto') {
           if (!last) say('error', at, 'Адрес стоит не последним в пути.');
           if (!top) say('error', at, 'Адрес внутри цикла, выбора или сливающегося вопроса: раскладка так не умеет.');
@@ -503,18 +506,21 @@
         if (it.t === 'q') {
           if (NEGATION.test(it.text) && (!it.down || !it.right))
             say('warn', at, 'Вопрос с отрицанием: подпишите выходы с пояснением («да, …» / «нет, …»).');
+          const yes = it.yes || [];
           const no = it.no || [];
           const terminal = no.length && no[no.length - 1].t === 'goto';
-          if (terminal && (it.yes || []).length) say('error', at, 'У вопроса с адресом на «нет» путь «да» — продолжение шампура, yes не нужен.');
-          walk(it.yes || [], at, false);
-          walk(no, at, top && terminal);
+          if (terminal && yes.length) say('error', at, 'У вопроса с адресом на «нет» путь «да» — продолжение шампура, yes не нужен.');
+          if (!terminal && yes.length > 0 && no.length === 0)
+            say('warn', at, 'У вопроса заполнена ветка «да» при пустой «нет» (обход пустой линией справа): переверните вопрос, чтобы главный маршрут шёл по шампуру, а условный шаг — вправо.');
+          walk(yes, at, false, onSkewer);
+          walk(no, at, top && terminal, false);
         }
         if (it.t === 'choice') {
           if (it.cases.length < 2) say('warn', at, 'Выбор с одним вариантом — это действие.');
           if (it.cases.length > MAX_CASES) say('warn', at, `В выборе не больше ${MAX_CASES} вариантов (язык ДРАКОН): их ${it.cases.length}.`);
-          it.cases.forEach((c) => walk(c.seq, `${at} › ${c.label}`, false));
+          it.cases.forEach((c, cIdx) => walk(c.seq, `${at} › ${c.label}`, false, onSkewer && cIdx === 0));
         }
-        if (it.t === 'loop') walk(it.body, at, false);
+        if (it.t === 'loop') walk(it.body, at, false, onSkewer);
       });
     }
 
@@ -524,7 +530,7 @@
     if (d.kind === 'primitive') {
       const n = countIcons(d.items);
       if (n > MAX_PRIMITIVE) say('warn', d.title, `Примитив — для простых алгоритмов (до ${MAX_PRIMITIVE} икон), здесь ${n}: сложное рисуют силуэтом, по частям.`);
-      walk(d.items, d.title, true);
+      walk(d.items, d.title, true, true);
     } else {
       const index = new Map();
       const reached = new Set();
@@ -541,7 +547,7 @@
         if (last && (!tail || tail.t !== 'end')) say('error', b.name, 'Последняя ветка кончается иконой «Конец».');
         if (!last && (!tail || tail.t !== 'goto')) say('error', b.name, 'Ветка кончается адресом следующей.');
         if (i > 0 && !reached.has(b.name)) say('warn', b.name, 'Ни один адрес не ведёт на эту ветку: до неё не дойти.');
-        walk(b.items, b.name, true);
+        walk(b.items, b.name, true, true);
       });
     }
     return found;

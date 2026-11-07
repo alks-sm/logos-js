@@ -9,37 +9,27 @@
   'use strict';
 
   return [
-    /* ── Датчики и предикаты (guards) ── */
+    /* ── Датчики и предикаты (guards) — «да» всегда ведёт по счастливому пути вниз! ── */
     {
-      id: 'isEmergencyTrigger',
+      id: 'isSafetyNormal',
       kind: 'guard',
-      title: 'Проверка сигнала Panic или несанкционированного взлома двери (force-door)',
+      title: 'Датчики взлома и кнопка Panic в норме (нет экстренной аварии)',
       reads: ['state.mode', 'bag.action.type'],
       cases: [
-        { title: 'кнопка panic → true', state: { mode: 'armed' }, bag: { action: { type: 'panic' } }, expect: true },
-        { title: 'взлом force-door при охране → true', state: { mode: 'armed' }, bag: { action: { type: 'force-door' } }, expect: true },
-        { title: 'обычный ввод pin → false', state: { mode: 'armed' }, bag: { action: { type: 'pin' } }, expect: false },
+        { title: 'обычный ввод pin → true (норма, вниз по шампуру)', state: { mode: 'armed' }, bag: { action: { type: 'pin' } }, expect: true },
+        { title: 'кнопка panic → false (авария, вправо!)', state: { mode: 'armed' }, bag: { action: { type: 'panic' } }, expect: false },
+        { title: 'взлом force-door при охране → false (авария, вправо!)', state: { mode: 'armed' }, bag: { action: { type: 'force-door' } }, expect: false },
       ],
     },
     {
-      id: 'isEmergencyTriggeredNow',
+      id: 'isOperationalMode',
       kind: 'guard',
-      title: 'Проверка, сработал ли на этом такте аварийный контур (bag.emergency === true)',
-      reads: ['bag.emergency'],
-      cases: [
-        { title: 'авария сработала → true', bag: { emergency: true }, expect: true },
-        { title: 'штатный такт → false', bag: {}, expect: false },
-      ],
-    },
-    {
-      id: 'isInLockedDownMode',
-      kind: 'guard',
-      title: 'Находится ли шлюз в режиме блокировки (alarm или lockout)',
+      title: 'Шлюз находится в штатном рабочем режиме (не в Alarm и не в Lockout)',
       reads: ['state.mode'],
       cases: [
-        { title: 'lockout → true', state: { mode: 'lockout' }, expect: true },
-        { title: 'alarm → true', state: { mode: 'alarm' }, expect: true },
-        { title: 'armed → false', state: { mode: 'armed' }, expect: false },
+        { title: 'armed → true (штатный, вниз по шампуру)', state: { mode: 'armed' }, expect: true },
+        { title: 'lockout → false (блокировка, вправо)', state: { mode: 'lockout' }, expect: false },
+        { title: 'alarm → false (тревога, вправо)', state: { mode: 'alarm' }, expect: false },
       ],
     },
     {
@@ -84,13 +74,13 @@
       ],
     },
     {
-      id: 'isMaxAttemptsReached',
+      id: 'hasAttemptsLeft',
       kind: 'guard',
-      title: 'Достигнут ли порог блокировки (state.attempts >= 3)',
+      title: 'Остались ли ещё попытки ввода PIN до блокировки (state.attempts < 3)',
       reads: ['state.attempts'],
       cases: [
-        { title: '3 попытки → true', state: { attempts: 3 }, expect: true },
-        { title: '2 попытки → false', state: { attempts: 2 }, expect: false },
+        { title: '2 ошибки → true (попытки ещё есть)', state: { attempts: 2 }, expect: true },
+        { title: '3 ошибки → false (лимит исчерпан, вправо в Lockout)', state: { attempts: 3 }, expect: false },
       ],
     },
     {

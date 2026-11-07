@@ -1,5 +1,6 @@
 /* impl/guards.js — Чистые предикаты и селекторы контроллера шлюза безопасности.
-   СТРАЖ ЧИСТОТЫ: 0 let, 0 var, 0 class, 0 this, 0 DOM. Вход заморожен через deepFreeze. */
+   По канону ДРАКОНа: true всегда означает «норма / счастливый путь вниз по шампуру»,
+   а false уводит поток вправо на обработку аварии, блокировки или отказа. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory();
@@ -10,14 +11,13 @@
   'use strict';
 
   return {
-    isEmergencyTrigger: (state, bag) => {
+    isSafetyNormal: (state, bag) => {
       const t = bag.action && bag.action.type;
-      return t === 'panic' || (t === 'force-door' && state.mode !== 'unlocked' && state.mode !== 'maintenance');
+      const isBreakIn = t === 'force-door' && state.mode !== 'unlocked' && state.mode !== 'maintenance';
+      return t !== 'panic' && !isBreakIn;
     },
 
-    isEmergencyTriggeredNow: (_state, bag) => Boolean(bag.emergency),
-
-    isInLockedDownMode: (state) => state.mode === 'alarm' || state.mode === 'lockout',
+    isOperationalMode: (state) => state.mode !== 'alarm' && state.mode !== 'lockout',
 
     isMasterResetValid: (_state, bag, world) =>
       Boolean(
@@ -37,7 +37,7 @@
     isPinValid: (_state, bag, world) =>
       Boolean(bag.action && world && bag.action.pin === world.validPin),
 
-    isMaxAttemptsReached: (state) => state.attempts >= 3,
+    hasAttemptsLeft: (state) => state.attempts < 3,
 
     isDoorClosed: (state) => !state.doorOpen,
 
