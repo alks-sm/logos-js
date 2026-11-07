@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logos — пульт архитектуры и инвариантов (срез Keel)</title>
+<link rel="stylesheet" href="vendor/drakon.css">
+<link rel="stylesheet" href="vendor/lanes.css">
+<link rel="stylesheet" href="logos.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    background: var(--lg-page);
+    color: var(--lg-ink);
+    font: 14px/1.55 var(--lg-font);
+    margin: 0;
+  }
+  .wrap {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 28px 18px 64px;
+    display: grid;
+    gap: 32px;
+  }
+  header, section { display: grid; gap: 12px; min-width: 0; }
+  .top-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--lg-faint); font-weight: 600; }
+  h1 { font: 600 26px/1.2 var(--lg-display); margin: 0; }
+  h2 { font: 600 19px/1.25 var(--lg-display); margin: 0; display: flex; align-items: center; gap: 10px; }
+  h3 { font: 600 15px/1.3 var(--lg-display); margin: 6px 0 0; }
+  p { margin: 0; max-width: 82ch; }
+  .soft { color: var(--lg-soft); }
+  code { font: 12.5px var(--lg-mono); background: var(--lg-strip); padding: 1px 5px; border-radius: 4px; }
+  pre {
+    margin: 0;
+    font: 12.5px/1.5 var(--lg-mono);
+    background: var(--lg-ground);
+    border: 1px solid var(--lg-hairline);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+
+  /* Сводка здоровья и lint */
+  .summary-card {
+    background: var(--lg-ground);
+    border: 1px solid var(--lg-hairline);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: grid;
+    gap: 12px;
+  }
+  .stats {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--lg-hairline);
+  }
+  .stat { display: flex; align-items: baseline; gap: 6px; }
+  .stat b { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12.5px; color: var(--lg-soft); }
+  .lint-list { display: grid; gap: 6px; font-size: 13px; }
+  .lint-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 7px;
+  }
+  .lint-item.warn { background: var(--lg-warn-bg); color: var(--lg-warn); }
+  .lint-item.error { background: var(--lg-stop-bg); color: var(--lg-stop); }
+  .lint-item.ok { background: var(--lg-ok-bg); color: var(--lg-ok); }
+
+  /* Таблицы */
+  .table {
+    overflow-x: auto;
+    background: var(--lg-ground);
+    border: 1px solid var(--lg-hairline);
+    border-radius: 10px;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-top: 1px solid var(--lg-hairline); }
+  tr:first-child th { border-top: 0; }
+  th { font-weight: 600; color: var(--lg-soft); font-size: 12px; background: var(--lg-strip); }
+  td:first-child { white-space: nowrap; }
+
+  /* Переключатель модулей для генератора ТЗ */
+  .bar-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .pill-btn {
+    border: 1px solid var(--lg-hairline);
+    background: var(--lg-ground);
+    color: var(--lg-soft);
+    border-radius: 7px;
+    padding: 5px 11px;
+    font: 12.5px var(--lg-font);
+    cursor: pointer;
+  }
+  .pill-btn:hover { border-color: var(--lg-accent); color: var(--lg-ink); }
+  .pill-btn[aria-pressed="true"] {
+    border-color: var(--lg-accent);
+    background: var(--lg-accent-bg);
+    color: var(--lg-accent);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="top-row">
+      <div class="eyebrow">Logos 1.0 · Формальная база архитектуры («ДРАКОН для нейросетей»)</div>
+      <button class="pill-btn" id="theme-btn" type="button">Тема: авто</button>
+    </div>
+    <h1 id="proj-title">Logos</h1>
+    <p class="soft" id="proj-summary"></p>
+    <div class="summary-card">
+      <div class="stats" id="stats-row"></div>
+      <div class="lint-list" id="lint-box"></div>
+    </div>
+  </header>
+
+  <section id="sec-layers">
+    <h2>1. Слои, модули и разъёмы под плагины (Sockets)</h2>
+    <p class="soft">Зависимости разрешены только сверху вниз (от слоя 3 к слою 0). Фиолетовым пунктиром показаны
+      официальные <b>разъёмы расширения (Sockets)</b> — точки, куда втыкаются <code>Frame Generator</code>, генератор
+      шестерёнок и правила предприятия без правки ядра и <code>main.ts</code>.</p>
+    <div class="lg-canvas" id="fig-layers"></div>
+    <div class="table">
+      <table id="tbl-sockets">
+        <thead>
+          <tr>
+            <th>Разъём (Socket)</th>
+            <th>Модуль-владелец</th>
+            <th>Входной контракт плагина</th>
+            <th>Охраняемые инварианты</th>
+            <th>Примеры плагинов</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="sec-invariants">
+    <h2>2. Матрица «Решения → Инварианты → Автоматические стражи»</h2>
+    <p class="soft">В Logos правило без автоматического стража (<code>guard</code>) считается незащищённым: нейросеть
+      может обойти его и сказать «я так не думаю». Верификатор <code>Logos.lint()</code> помечает такие места предупреждением.</p>
+    <div class="table">
+      <table id="tbl-invariants">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Решение</th>
+            <th>Инвариант (закон системы)</th>
+            <th>Модули</th>
+            <th>Страж (чем проверяется)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="sec-states">
+    <h2>3. Автомат состояний окна (Nav) и стек возврата Esc</h2>
+    <p class="soft">Все состояния достижимы из начального (<code>● Сборка / Проект</code>). Сверху зелёным пунктиром —
+      обязательные пути возврата по <code>Esc</code>; снизу на горизонтальных дорожках — прямые переходы с условиями допустимости.</p>
+    <div class="lg-canvas" id="fig-states"></div>
+  </section>
+
+  <section id="sec-lanes">
+    <h2>4. Протоколы взаимодействия во времени (lanes-js)</h2>
+    <p class="soft">Как участники (человек, окно, командный слой, плагин, ядро и хранилище) общаются по шагам без пересечения стрелок.</p>
+    <div id="lanes-list" style="display:grid;gap:22px"></div>
+  </section>
+
+  <section id="sec-drakon">
+    <h2>5. Алгоритмы и правила решений в нотации ДРАКОН (drakon-js)</h2>
+    <p class="soft">Внутренняя логика узлов: шампур слева — главный успешный путь; чем правее — тем хуже исход (отказы и ранние выходы).
+      Вставка <code>Продуктовый коммит и выдача PN</code> в силуэте ссылается на примитив ниже (проверяется <code>Logos.lint</code>).</p>
+    <div id="drakon-list" style="display:grid;gap:24px"></div>
+  </section>
+
+  <section id="sec-terms">
+    <h2>6. Словарь терминов и констант (одно слово = один смысл)</h2>
+    <div class="table">
+      <table id="tbl-terms">
+        <thead>
+          <tr>
+            <th>Идентификатор</th>
+            <th>Термин</th>
+            <th>Точное определение в модели</th>
+            <th>Привязка в коде / решению</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="sec-brief">
+    <h2>7. Генератор «прошивки» (ТЗ-контракта) для ИИ-агента</h2>
+    <p class="soft">Вместо пересказа расплывчатых <code>.md</code>-документов агент получает вычисленный срез из базы
+      <code>Logos.brief(KeelModel, moduleId)</code>: только разрешённые импорты, инварианты со стражами и контракты разъёмов.</p>
+    <div class="bar-pills" id="brief-pills"></div>
+    <pre id="brief-out"></pre>
+  </section>
+</div>
+
+<div id="xray-panel">
+  <h3 id="xray-title">Module X-ray</h3>
+  <div id="xray-content"></div>
+  <div id="xray-panel">
+    <h3 id="xray-title">Module X-ray</h3>
+    <div id="xray-content"></div>
+  </div>
+</div>
+
+<script src="vendor/drakon.js"></script>
+<script src="vendor/lanes.js"></script>
+<script src="logos.js"></script>
+<script src="examples/keel-model.js"></script>
+<script src="examples/keel-verify-snapshot.js"></script>
+<script>
+(function () {
+  const M = window.KeelModel;
+  const Lg = window.Logos;
+  const V = window.KeelVerifySnapshot || { findings: [], moduleStats: {} };
+
+  // ... (rest of the script)
+
+  document.getElementById('proj-title').textContent = 'Logos · ' + M.title;
+  document.getElementById('proj-summary').textContent = M.summary;
+
+  // 0. Сводка и результаты Logos.lint
+  const stats = [
+    [M.decisions.length, 'решений'],
+    [M.invariants.length, 'инвариантов'],
+    [M.modules.length, 'модулей'],
+    [M.sockets.length, 'разъёмов плагинов'],
+    [M.states.length, 'состояний'],
+    [M.protocols.length, 'протоколов (Lanes)'],
+    [M.algorithms.length, 'схем ДРАКОН'],
+  ];
+  document.getElementById('stats-row').innerHTML = stats
+    .map(([n, w]) => `<div class="stat"><b>${n}</b><span>${w}</span></div>`)
+    .join('');
+
+  const issues = Lg.lint(M);
+  const lintBox = document.getElementById('lint-box');
+  if (issues.length === 0) {
+    lintBox.innerHTML = `<div class="lint-item ok">✓ Все проверки Logos.lint(), Drakon.lint() и Lanes.lint() пройдены без замечаний.</div>`;
+  } else {
+    lintBox.innerHTML = issues
+      .map(
+        (i) =>
+          `<div class="lint-item ${i.level}"><b>${i.level === 'error' ? '✗ ОШИБКА' : '⚠ ВНИМАНИЕ'}</b> <code>${i.where}</code> <span>${i.message}</span></div>`
+      )
+      .join('');
+  }
+
+  // 1. Слои и сокеты плагинов
+  document.getElementById('fig-layers').innerHTML = Lg.layersSvg(M);
+  const sockBody = document.querySelector('#tbl-sockets tbody');
+  for (const s of M.sockets) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td><span class="lg-badge lg-badge-socket">🔌 ${s.id}</span><br><span class="soft">${s.title}</span></td>` +
+      `<td><code>${s.host}</code></td>` +
+      `<td>${s.contract}</td>` +
+      `<td>${s.invariants.map((id) => `<code>${id}</code>`).join(' ')}</td>` +
+      `<td class="soft">${s.examples.join('; ')}</td>`;
+    sockBody.appendChild(tr);
+  }
+
+  // 2. Таблица инвариантов
+  const invBody = document.querySelector('#tbl-invariants tbody');
+  for (const inv of M.invariants) {
+    const tr = document.createElement('tr');
+    const guardCell = inv.guard
+      ? `<span class="lg-badge lg-badge-ok">✓ Ограждён</span><br><code>${inv.guard}</code>`
+      : `<span class="lg-badge lg-badge-warn">⚠ Нет стража</span><br><span class="soft">Требуется тест или AST-проверка</span>`;
+    tr.innerHTML =
+      `<td><b>${inv.id}</b></td>` +
+      `<td><code>${inv.decision}</code></td>` +
+      `<td><b>${inv.title}</b><br><span class="soft">${inv.why}</span></td>` +
+      `<td>${inv.scope.map((m) => `<code>${m}</code>`).join(' ')}</td>` +
+      `<td>${guardCell}</td>`;
+    invBody.appendChild(tr);
+  }
+
+  // 3. Автомат состояний
+  document.getElementById('fig-states').innerHTML = Lg.statesSvg(M);
+
+  // 4. Протоколы Lanes
+  const lanesList = document.getElementById('lanes-list');
+  for (const p of M.protocols) {
+    const wrap = document.createElement('div');
+    const head = document.createElement('h3');
+    head.innerHTML = `${p.scheme.title} <code style="margin-left:6px">${p.id}</code>`;
+    const fig = document.createElement('div');
+    wrap.appendChild(head);
+    wrap.appendChild(fig);
+    lanesList.appendChild(wrap);
+    window.Lanes.figure(fig, p.scheme);
+    const fitBtn = fig.querySelector('.ln-fit');
+    if (fitBtn && p.scheme.lanes.length > 4) fitBtn.click();
+  }
+
+  // 5. Алгоритмы ДРАКОН
+  const drakonList = document.getElementById('drakon-list');
+  for (const a of M.algorithms) {
+    const wrap = document.createElement('div');
+    wrap.id = a.id;
+    const head = document.createElement('h3');
+    head.innerHTML = `${a.scheme.title} <code style="margin-left:6px">${a.id}</code> ${a.invariant ? `<span class="lg-badge lg-badge-accent">${a.invariant}</span>` : ''}`;
+    const fig = document.createElement('div');
+    wrap.appendChild(head);
+    wrap.appendChild(fig);
+    drakonList.appendChild(wrap);
+    window.Drakon.figure(fig, a.scheme);
+    const fitBtn = fig.querySelector('.dk-fit');
+    if (fitBtn && a.scheme.kind === 'silhouette') fitBtn.click();
+  }
+
+  // 6. Словарь терминов
+  const termsBody = document.querySelector('#tbl-terms tbody');
+  for (const t of M.terms) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td><code>${t.id}</code></td>` +
+      `<td><b>${t.title}</b></td>` +
+      `<td>${t.meaning}</td>` +
+      `<td><code>${t.const || '—'}</code></td>`;
+    termsBody.appendChild(tr);
+  }
+
+  // 7. Генератор ТЗ для ИИ
+  const pillsBox = document.getElementById('brief-pills');
+  const briefOut = document.getElementById('brief-out');
+  const targets = [['', 'Вся система'], ...M.modules.map((m) => [m.id, `${m.id} (${m.title})`])];
+  function selectBrief(modId) {
+    briefOut.textContent = Lg.brief(M, modId || undefined);
+    for (const b of pillsBox.querySelectorAll('button')) {
+      b.setAttribute('aria-pressed', b.dataset.mod === modId ? 'true' : 'false');
+    }
+  }
+  for (const [id, label] of targets) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pill-btn';
+    btn.dataset.mod = id;
+    btn.textContent = label;
+    btn.onclick = () => selectBrief(id);
+    pillsBox.appendChild(btn);
+  }
+  selectBrief('core');
+
+  // Переключатель темы
+  const themeBtn = document.getElementById('theme-btn');
+  const modes = ['', 'light', 'dark'];
+  let modeIdx = 0;
+  themeBtn.onclick = () => {
+    modeIdx = (modeIdx + 1) % modes.length;
+    const m = modes[modeIdx];
+    if (m) document.documentElement.setAttribute('data-theme', m);
+    else document.documentElement.removeAttribute('data-theme');
+    themeBtn.textContent = 'Тема: ' + (m === 'light' ? 'светлая' : m === 'dark' ? 'тёмная' : 'авто');
+  };
+
+  // Интерактивность: X-ray
+  const xrayPanel = document.getElementById('xray-panel');
+  const xrayTitle = document.getElementById('xray-title');
+  const xrayContent = document.getElementById('xray-content');
+
+  function openXray(modId) {
+    const mod = M.modules.find(m => m.id === modId);
+    if (!mod) return;
+    document.querySelectorAll('.lg-node-group').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`[data-module="${modId}"]`).classList.add('selected');
+    
+    xrayTitle.textContent = 'Рентген: ' + mod.id;
+    const ms = V.moduleStats[modId] || { findings: [], files: 0, lines: 0 };
+    xrayContent.innerHTML = `
+      <p><b>${mod.title}</b><br><span class="soft">${mod.role}</span></p>
+      <div class="stats">
+        <div class="stat"><b>${ms.files}</b><span>файлов</span></div>
+        <div class="stat"><b>${ms.lines}</b><span>строк</span></div>
+      </div>
+      ${ms.findings.length ? '<h5>Нарушения:</h5>' : ''}
+      ${ms.findings.map(f => `<div class="xray-issue"><b>${f.where}</b><br>${f.message}</div>`).join('')}
+    `;
+    xrayPanel.style.display = 'block';
+  }
+
+  document.addEventListener('click', (e) => {
+    const target = e.target.closest('[data-module]');
+    if (target) {
+      openXray(target.dataset.module);
+    } else if (!e.target.closest('#xray-panel')) {
+      xrayPanel.style.display = 'none';
+      document.querySelectorAll('.lg-node-group').forEach(el => el.classList.remove('selected'));
+    }
+  });
+
+})();
+</script>
+</body>
+</html>

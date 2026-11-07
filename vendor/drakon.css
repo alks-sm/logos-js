@@ -1,0 +1,76 @@
+/* Вид схем ДРАКОН (drakon.js). Цвета — токены --dk-*: по умолчанию нейтральная палитра с акцентом,
+   страница может переопределить любой. Тёмная тема — по prefers-color-scheme и по data-theme="dark". */
+:root {
+  --dk-line: #3a3a3a; --dk-icon: #ffffff; --dk-ink: #1b1b1b; --dk-soft: #5d5d5d; --dk-strip: #f2f2f4;
+  --dk-ground: #ffffff; --dk-hairline: #e3e3e5; --dk-accent: #0f6cbd;
+  --dk-new-bg: #e6f0fa; --dk-new: #0f6cbd;
+  --dk-ask-bg: #fff4ce; --dk-ask: #8a5300;
+  --dk-stop-bg: #fde7e9; --dk-stop: #a4262c;
+  --dk-human-bg: #e7f3e7; --dk-human: #0f7b0f;
+  --dk-font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --dk-line: #bdbdbd; --dk-icon: #2b2b2b; --dk-ink: #f3f3f3; --dk-soft: #c8c8c8; --dk-strip: #262626;
+    --dk-ground: #2b2b2b; --dk-hairline: #3d3d3d; --dk-accent: #60cdff;
+    --dk-new-bg: #1e3a4d; --dk-new: #479ef5;
+    --dk-ask-bg: #3b3419; --dk-ask: #fce100;
+    --dk-stop-bg: #442726; --dk-stop: #ff9992;
+    --dk-human-bg: #1c2d1a; --dk-human: #6ccb5f;
+  }
+}
+:root[data-theme="dark"] {
+  --dk-line: #bdbdbd; --dk-icon: #2b2b2b; --dk-ink: #f3f3f3; --dk-soft: #c8c8c8; --dk-strip: #262626;
+  --dk-ground: #2b2b2b; --dk-hairline: #3d3d3d; --dk-accent: #60cdff;
+  --dk-new-bg: #1e3a4d; --dk-new: #479ef5;
+  --dk-ask-bg: #3b3419; --dk-ask: #fce100;
+  --dk-stop-bg: #442726; --dk-stop: #ff9992;
+  --dk-human-bg: #1c2d1a; --dk-human: #6ccb5f;
+}
+
+/* Иконы и линии. */
+svg.dk { display: block; }
+svg.dk text { font-family: var(--dk-font); fill: var(--dk-ink); }
+svg.dk .dk-t { font-size: 12.5px; }
+svg.dk .dk-b { font-weight: 600; }
+svg.dk .dk-who { font-size: 11px; fill: var(--dk-soft); }
+svg.dk .dk-lbl { font-size: 11px; fill: var(--dk-soft); }
+svg.dk .dk-ln { stroke: var(--dk-line); stroke-width: 1.4; fill: none; }
+svg.dk .dk-in { stroke: var(--dk-line); stroke-width: 1.2; }
+svg.dk .dk-arrow { fill: var(--dk-line); }
+svg.dk .dk-ic { fill: var(--dk-icon); stroke: var(--dk-line); stroke-width: 1.4; }
+svg.dk .dk-branch, svg.dk .dk-addr { fill: var(--dk-strip); }
+svg.dk .dk-new { fill: var(--dk-new-bg); stroke: var(--dk-new); }
+svg.dk .dk-ask { fill: var(--dk-ask-bg); stroke: var(--dk-ask); stroke-dasharray: 5 3; }
+svg.dk .dk-stop { fill: var(--dk-stop-bg); stroke: var(--dk-stop); }
+svg.dk .dk-human { fill: var(--dk-human-bg); stroke: var(--dk-human); }
+svg.dk .dk-badge { fill: var(--dk-ink); }
+svg.dk .dk-badge-t { font-size: 10px; font-weight: 600; fill: var(--dk-ground); }
+svg.dk a .dk-ic { cursor: pointer; }
+svg.dk a:hover .dk-ic, svg.dk a:focus .dk-ic { stroke-width: 2.4; }
+
+/* Поле схемы (Drakon.figure). */
+.dk-bar { display: flex; justify-content: flex-end; }
+.dk-fit { font: 12.5px var(--dk-font); color: var(--dk-accent); background: none; border: 1px solid var(--dk-hairline);
+  border-radius: 6px; height: 26px; padding: 0 10px; cursor: pointer; }
+.dk-fit:hover, .dk-fit:focus-visible { border-color: var(--dk-accent); outline: none; }
+.dk-canvas { background: var(--dk-ground); border: 1px solid var(--dk-hairline); border-radius: 10px; overflow-x: auto; margin-top: 8px; }
+.dk-canvas.dk-fitted svg { width: 100%; height: auto; }
+.dk-notes { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 4px; color: var(--dk-soft); font: 13px/1.5 var(--dk-font); max-width: 90ch; }
+.dk-notes li::marker { font-weight: 600; color: var(--dk-ink); }
+.dk-fail { color: var(--dk-stop); padding: 12px; margin: 0; }
+
+/* Обозначения (Drakon.legend). */
+.dk-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; background: var(--dk-ground);
+  border: 1px solid var(--dk-hairline); border-radius: 10px; padding: 12px 14px; }
+.dk-legend figure { margin: 0; display: flex; align-items: center; gap: 8px; font: 12.5px var(--dk-font); color: var(--dk-soft); }
+.dk-swatch { width: 26px; height: 16px; border-radius: 3px; border: 1.5px solid var(--dk-line); background: var(--dk-icon); }
+.dk-swatch.dk-new { background: var(--dk-new-bg); border-color: var(--dk-new); }
+.dk-swatch.dk-ask { background: var(--dk-ask-bg); border-color: var(--dk-ask); border-style: dashed; }
+.dk-swatch.dk-stop { background: var(--dk-stop-bg); border-color: var(--dk-stop); }
+.dk-swatch.dk-human { background: var(--dk-human-bg); border-color: var(--dk-human); }
+.dk-sep { width: 1px; align-self: stretch; background: var(--dk-hairline); }
+
+/* Веточный цикл: знак повтора на адресе, ведущем назад, и на ветке, куда он ведёт. */
+svg.dk .dk-loopmark { font-size: 14px; font-weight: 700; fill: var(--dk-accent); }
+.dk-loopmark-demo { display: inline-block; width: 44px; text-align: center; font: 700 16px/1 var(--dk-font); color: var(--dk-accent); }

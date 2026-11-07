@@ -1,0 +1,23 @@
+{
+  "name": "logos",
+  "version": "0.1.0",
+  "description": "Формальная база архитектуры, инвариантов, состояний и схем (ДРАКОН + Дорожки) для управления разработкой с ИИ",
+  "main": "logos.js",
+  "files": [
+    "logos.js",
+    "logos.css",
+    "vendor/drakon.js",
+    "vendor/drakon.css",
+    "vendor/lanes.js",
+    "vendor/lanes.css",
+    "examples/keel-model.js",
+    "index.html",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test.js",
+    "help": "node -e \"console.log(require('./logos.js').help('all'))\"",
+    "lint:keel": "node -e \"const L=require('./logos.js'), K=require('./examples/keel-model.js'); console.log(L.report(K))\""
+  },
+  "private": true
+}
