@@ -78,9 +78,29 @@
   const pts = (a) => a.map((p) => p.join(',')).join(' ');
 
   // ─── раскладка ────────────────────────────────────────────────────────────
-  function engine(cfg) {
+  function engine(cfg, lintIssues) {
     const CW = cfg.column, BW = cfg.icon, GW = cfg.gotoColumn, AW = cfg.address, GAP = cfg.gap, LH = cfg.line, PAD = cfg.pad;
     const width = measurer(cfg.font);
+
+    // Карта замечаний lint по адресу `where` для подсветки проблемных икон прямо на схеме.
+    const lintMap = new Map();
+    for (const iss of lintIssues || []) {
+      const prev = lintMap.get(iss.where);
+      if (!prev) {
+        lintMap.set(iss.where, { level: iss.level, messages: [iss.message] });
+      } else {
+        if (iss.level === 'error') prev.level = 'error';
+        prev.messages.push(iss.message);
+      }
+    }
+
+    function wrapNode(whereKey, inner, extraCls) {
+      const hit = whereKey ? lintMap.get(whereKey) : null;
+      const cls = ['dk-node', extraCls || '', hit ? `dk-lint-${hit.level}` : ''].filter(Boolean).join(' ');
+      const titleTag = hit ? `<title>${esc(hit.messages.join('\n'))}</title>` : '';
+      const attr = whereKey ? ` data-where="${esc(whereKey)}"` : '';
+      return `<g class="${cls}"${attr}>${titleTag}${inner}</g>`;
+    }
 
     function wrap(text, w) {
       const lines = [];
@@ -104,9 +124,9 @@
       return `<text text-anchor="middle" class="dk-t ${cls}">` + lines.map((l, i) => `<tspan x="${cx}" y="${y0 + i * LH}">${esc(l)}</tspan>`).join('') + '</text>';
     }
 
-    const vline = (x, y1, y2) => (y2 > y1 ? `<line class="dk-ln" x1="${x}" y1="${y1}" x2="${x}" y2="${y2}"/>` : '');
-    const hline = (y, x1, x2) => `<line class="dk-ln" x1="${Math.min(x1, x2)}" y1="${y}" x2="${Math.max(x1, x2)}" y2="${y}"/>`;
-    const label = (x, y, s) => `<text class="dk-lbl" x="${x}" y="${y}">${esc(s)}</text>`;
+    const vline = (x, y1, y2, cls) => (y2 > y1 ? `<line class="dk-ln${cls ? ' ' + cls : ''}" x1="${x}" y1="${y1}" x2="${x}" y2="${y2}"/>` : '');
+    const hline = (y, x1, x2, cls) => `<line class="dk-ln${cls ? ' ' + cls : ''}" x1="${Math.min(x1, x2)}" y1="${y}" x2="${Math.max(x1, x2)}" y2="${y}"/>`;
+    const label = (x, y, s, cls) => `<text class="dk-lbl${cls ? ' ' + cls : ''}" x="${x}" y="${y}">${esc(s)}</text>`;
     const badge = (n, x, y) => (n ? `<circle class="dk-badge" cx="${x}" cy="${y}" r="8"/><text class="dk-badge-t" x="${x}" y="${y + 3.5}" text-anchor="middle">${esc(n)}</text>` : '');
 
     function shape(kind, x, y, w, h, k) {
@@ -130,13 +150,17 @@
     const linked = (it, s) => (it.link ? `<a href="#${esc(it.link)}" aria-label="${esc(it.text)}">${s}</a>` : s);
 
     // Блок: w — ширина (колонка 0 — CW), h — высота главного пути, bottom — низ всего содержимого;
-    // draw(out, x, y[, colX]) рисует и возвращает висящие концы { x, y, to } — их доводит до адреса или до конца владелец.
-    function measure(it) {
+    // draw(out, x, y[, colX]) рисует и возвращает висящие концы { x, y, to, side } — их доводит до адреса или до конца владелец.
+    function measure(it, wherePrefix, isSide) {
+      const at = wherePrefix ? `${wherePrefix} › ${it.text || it.to || it.t}` : (it.text || it.to || it.t);
+      const sideCls = isSide ? 'dk-side' : '';
+
       if (it.t === 'act' || it.t === 'ins') {
         const h = iconH(it.text);
         return { w: CW, h: h + GAP, bottom: h + GAP, draw(out, x, y) {
           const ix = x + (CW - BW) / 2;
-          out.icons.push(linked(it, shape(it.t, ix, y, BW, h, it.k) + textBlock(it.text, x + CW / 2, y, h) + badge(it.n, ix + BW - 2, y + 2)));
+          const inner = linked(it, shape(it.t, ix, y, BW, h, it.k) + textBlock(it.text, x + CW / 2, y, h) + badge(it.n, ix + BW - 2, y + 2));
+          out.icons.push(wrapNode(at, inner, sideCls));
           return [];
         } };
       }
@@ -145,8 +169,9 @@
         const h = wh + th;
         return { w: CW, h: h + GAP, bottom: h + GAP, draw(out, x, y) {
           const ix = x + (CW - BW) / 2;
-          out.icons.push(linked(it, shape('act', ix, y, BW, h, it.k) + hline(y + wh, ix, ix + BW).replace('dk-ln', 'dk-in') +
-            textBlock(it.who, x + CW / 2, y, wh, BW - 20, 'dk-who') + textBlock(it.text, x + CW / 2, y + wh, th) + badge(it.n, ix + BW - 2, y + 2)));
+          const inner = linked(it, shape('act', ix, y, BW, h, it.k) + hline(y + wh, ix, ix + BW).replace('dk-ln', 'dk-in') +
+            textBlock(it.who, x + CW / 2, y, wh, BW - 20, 'dk-who') + textBlock(it.text, x + CW / 2, y + wh, th) + badge(it.n, ix + BW - 2, y + 2));
+          out.icons.push(wrapNode(at, inner, sideCls));
           return [];
         } };
       }
@@ -156,34 +181,35 @@
         const terminal = no.length > 0 && no[no.length - 1].t === 'goto';
         const icon = (out, x, y) => {
           const ix = x + (CW - BW) / 2;
-          out.icons.push(shape('q', ix, y, BW, qh, it.k) + textBlock(it.text, x + CW / 2, y, qh, BW - 40) + badge(it.n, ix + BW - 10, y + 2));
-          out.icons.push(label(x + CW / 2 + 6, y + qh + 13, it.down || 'да'));
-          out.icons.push(label(ix + BW + 6, y + qh / 2 - 6, it.right || 'нет'));
+          const qNode = shape('q', ix, y, BW, qh, it.k) + textBlock(it.text, x + CW / 2, y, qh, BW - 40) + badge(it.n, ix + BW - 10, y + 2);
+          out.icons.push(wrapNode(at, qNode, sideCls));
+          out.icons.push(label(x + CW / 2 + 6, y + qh + 13, it.down || 'да', sideCls));
+          out.icons.push(label(ix + BW + 6, y + qh / 2 - 6, it.right || 'нет', 'dk-side'));
         };
         if (terminal) {
-          const nb = layoutSeq(no);
+          const nb = layoutSeq(no, at, true);
           const bare = nb.items === 0;
           return { w: CW, h: qh + GAP, bottom: qh + GAP, terminal: true, tw: bare ? GW : nb.w, tbottom: qh + GAP + (bare ? 0 : nb.h),
             draw(out, x, y, colX) {
               icon(out, x, y);
               const cx = bare ? colX + GW / 2 : colX + CW / 2;
-              out.lines.push(hline(y + qh / 2, x + (CW + BW) / 2, cx));
-              if (bare) return [{ x: cx, y: y + qh / 2, to: nb.tail }];
-              out.lines.push(vline(cx, y + qh / 2, y + qh + GAP));
-              return nb.draw(out, colX, y + qh + GAP);
+              out.lines.push(hline(y + qh / 2, x + (CW + BW) / 2, cx, 'dk-side'));
+              if (bare) return [{ x: cx, y: y + qh / 2, to: nb.tail, side: true }];
+              out.lines.push(vline(cx, y + qh / 2, y + qh + GAP, 'dk-side'));
+              return nb.draw(out, colX, y + qh + GAP).map((p) => Object.assign({}, p, { side: true }));
             } };
         }
-        const yes = layoutSeq(it.yes || []);
-        const nb = layoutSeq(no);
+        const yes = layoutSeq(it.yes || [], at, isSide);
+        const nb = layoutSeq(no, at, true);
         const span = Math.max(yes.h, nb.h, 10);
         const h = qh + GAP + span + 12;
         return { w: yes.w + nb.w, h, bottom: h, draw(out, x, y) {
           icon(out, x, y);
           const cx = x + yes.w + CW / 2;
           const join = y + qh + GAP + span;
-          out.lines.push(hline(y + qh / 2, x + (CW + BW) / 2, cx));
-          out.lines.push(vline(cx, y + qh / 2, join));
-          out.lines.push(hline(join, cx, x + CW / 2));
+          out.lines.push(hline(y + qh / 2, x + (CW + BW) / 2, cx, 'dk-side'));
+          out.lines.push(vline(cx, y + qh / 2, join, 'dk-side'));
+          out.lines.push(hline(join, cx, x + CW / 2, 'dk-side'));
           yes.draw(out, x, y + qh + GAP);
           nb.draw(out, x + yes.w, y + qh + GAP);
           return [];
@@ -191,7 +217,12 @@
       }
       if (it.t === 'choice') {
         const ch = iconH(it.text, 36);
-        const cases = it.cases.map((c) => ({ c, s: layoutSeq(c.seq), vh: iconH(c.label, 28) }));
+        const cases = it.cases.map((c, idx) => ({
+          c,
+          idx,
+          s: layoutSeq(c.seq, `${at} › ${c.label}`, isSide || idx > 0),
+          vh: iconH(c.label, 28),
+        }));
         const vh = Math.max(...cases.map((c) => c.vh));
         const sh = Math.max(...cases.map((c) => c.s.h));
         const w = cases.reduce((a, c) => a + c.s.w, 0);
@@ -199,33 +230,35 @@
         const h = merge + 12;
         return { w, h, bottom: h, draw(out, x, y) {
           const ix = x + (CW - BW) / 2;
-          out.icons.push(shape('choice', ix, y, BW, ch, it.k) + textBlock(it.text, x + CW / 2, y - 3, ch) + badge(it.n, ix + BW - 2, y + 2));
+          out.icons.push(wrapNode(at, shape('choice', ix, y, BW, ch, it.k) + textBlock(it.text, x + CW / 2, y - 3, ch) + badge(it.n, ix + BW - 2, y + 2), sideCls));
           let cx = x;
           const centers = [];
           for (const c of cases) {
             const mid = cx + CW / 2;
+            const cSide = isSide || c.idx > 0 ? 'dk-side' : '';
             centers.push(mid);
-            out.lines.push(vline(mid, y + lineY, y + merge));
-            out.icons.push(shape('case', cx + (CW - BW) / 2, y + lineY + 14, BW, c.vh, c.c.k) + textBlock(c.c.label, mid, y + lineY + 14, c.vh));
+            out.lines.push(vline(mid, y + lineY, y + merge, cSide));
+            const caseInner = shape('case', cx + (CW - BW) / 2, y + lineY + 14, BW, c.vh, c.c.k) + textBlock(c.c.label, mid, y + lineY + 14, c.vh);
+            out.icons.push(wrapNode(`${at} › ${c.c.label}`, caseInner, cSide));
             c.s.draw(out, cx, y + seqTop);
             cx += c.s.w;
           }
-          out.lines.push(hline(y + lineY, centers[0], centers[centers.length - 1]));
-          out.lines.push(hline(y + merge, centers[0], centers[centers.length - 1]));
+          out.lines.push(hline(y + lineY, centers[0], centers[centers.length - 1], 'dk-side'));
+          out.lines.push(hline(y + merge, centers[0], centers[centers.length - 1], 'dk-side'));
           return [];
         } };
       }
       if (it.t === 'loop') {
         const lh = iconH(it.text, 36);
-        const body = layoutSeq(it.body);
+        const body = layoutSeq(it.body, at, isSide);
         const eh = 26;
         const h = lh + GAP + body.h + eh + GAP;
         return { w: body.w, h, bottom: h, draw(out, x, y) {
           const ix = x + (CW - BW) / 2;
-          out.icons.push(shape('loop', ix, y, BW, lh, it.k) + textBlock(it.text, x + CW / 2, y, lh) + badge(it.n, ix + BW - 2, y + 2));
+          out.icons.push(wrapNode(at, shape('loop', ix, y, BW, lh, it.k) + textBlock(it.text, x + CW / 2, y, lh) + badge(it.n, ix + BW - 2, y + 2), sideCls));
           body.draw(out, x, y + lh + GAP);
           const ey = y + lh + GAP + body.h;
-          out.icons.push(shape('loopEnd', ix, ey, BW, eh) + textBlock('конец цикла', x + CW / 2, ey, eh, BW - 28, 'dk-lbl'));
+          out.icons.push(wrapNode(null, shape('loopEnd', ix, ey, BW, eh) + textBlock('конец цикла', x + CW / 2, ey, eh, BW - 28, 'dk-lbl'), sideCls));
           return [];
         } };
       }
@@ -234,10 +267,10 @@
 
     // Колонки путей «нет» с адресом стоят правее всего, что ниже их вопроса, а более ранние — правее поздних:
     // горизонталь каждого вопроса тогда не пересекает ни одной вертикали.
-    function layoutSeq(source) {
+    function layoutSeq(source, wherePrefix, isSide) {
       const items = source.slice();
       const tail = items.length && items[items.length - 1].t === 'goto' ? items.pop().to : null;
-      const ms = items.map(measure);
+      const ms = items.map((it) => measure(it, wherePrefix, isSide));
       const n = ms.length;
       const rest = new Array(n + 1).fill(0);
       const off = [];
@@ -255,10 +288,10 @@
       }
       bottom = Math.max(bottom, h);
       return { items: n, tail, w: CW + rest[0], h, bottom, draw(out, x, y) {
-        out.lines.push(vline(x + CW / 2, y, y + h));
+        out.lines.push(vline(x + CW / 2, y, y + h, isSide ? 'dk-side' : ''));
         const pend = [];
         for (let i = 0; i < n; i++) pend.push(...ms[i].draw(out, x, y + ys[i], x + off[i]));
-        if (tail) pend.push({ x: x + CW / 2, y: y + h, to: tail });
+        if (tail) pend.push({ x: x + CW / 2, y: y + h, to: tail, side: Boolean(isSide) });
         return pend;
       } };
     }
@@ -279,7 +312,7 @@
       const bs = d.branches.map((b) => {
         const items = b.items.slice();
         const fin = items.length && items[items.length - 1].t === 'end' ? items.pop() : null;
-        return { b, fin, s: layoutSeq(items), nh: iconH(b.name, 34, BW - 40) };
+        return { b, fin, s: layoutSeq(items, b.name, false), nh: iconH(b.name, 34, BW - 40) };
       });
       const busY = y0 + hh + 18, nameTop = busY + 16;
       const nh = Math.max(...bs.map((b) => b.nh));
@@ -287,10 +320,10 @@
       const addrTop = seqTop + Math.max(...bs.map((b) => b.s.bottom)) + 18;
       const bottomBus = addrTop + ah + 16;
       let x = left + 12;
-      const xs = bs.map((b) => { const at = x; x += b.s.w + gapB; return at; });
+      const xs = bs.map((b) => { const atX = x; x += b.s.w + gapB; return atX; });
 
       const c0 = xs[0] + CW / 2;
-      out.icons.push(shape('pill', c0 - BW / 2, y0, BW, hh) + textBlock(d.title, c0, y0, hh, BW - 20, 'dk-b'));
+      out.icons.push(wrapNode(d.title, shape('pill', c0 - BW / 2, y0, BW, hh) + textBlock(d.title, c0, y0, hh, BW - 20, 'dk-b')));
       out.lines.push(vline(c0, y0 + hh, busY));
       out.lines.push(hline(busY, left, xs[xs.length - 1] + CW / 2));
       out.lines.push(vline(left, busY, bottomBus));
@@ -300,8 +333,9 @@
       bs.forEach((b, i) => {
         const bx = xs[i], cx = bx + CW / 2;
         out.lines.push(vline(cx, busY, nameTop));
-        out.icons.push(`<g id="${esc(d.id ? d.id + '-' : '')}${esc(b.b.name)}">` + shape('branch', cx - BW / 2, nameTop, BW, nh) + textBlock(b.b.name, cx, nameTop - 3, nh, BW - 40, 'dk-b') +
-          (repeats.has(b.b.name) ? mark(cx + BW / 2 - 13, nameTop + 15) : '') + '</g>');
+        const branchInner = shape('branch', cx - BW / 2, nameTop, BW, nh) + textBlock(b.b.name, cx, nameTop - 3, nh, BW - 40, 'dk-b') +
+          (repeats.has(b.b.name) ? mark(cx + BW / 2 - 13, nameTop + 15) : '');
+        out.icons.push(`<g id="${esc(d.id ? d.id + '-' : '')}${esc(b.b.name)}" data-branch="${esc(b.b.name)}">` + wrapNode(b.b.name, branchInner) + '</g>');
         out.lines.push(vline(cx, nameTop + nh, seqTop));
         const pend = b.s.draw(out, bx, seqTop);
         if (b.fin) {
@@ -309,10 +343,12 @@
           out.icons.push(shape('pill', cx - BW / 2 + 30, addrTop, BW - 60, ah) + textBlock(b.fin.text, cx, addrTop, ah, BW - 80, 'dk-b'));
         }
         for (const p of pend) {
-          out.lines.push(vline(p.x, p.y, addrTop));
-          out.icons.push(shape('addr', p.x - AW / 2, addrTop, AW, ah) + textBlock(p.to, p.x, addrTop + 4, ah - 4, AW - 12, 'dk-b') +
-            (at.has(p.to) && at.get(p.to) <= i ? mark(p.x + AW / 2 - 10, addrTop + 20) : ''));
-          out.lines.push(vline(p.x, addrTop + ah, bottomBus));
+          const pCls = p.side ? 'dk-side' : '';
+          out.lines.push(vline(p.x, p.y, addrTop, pCls));
+          const addrInner = shape('addr', p.x - AW / 2, addrTop, AW, ah) + textBlock(p.to, p.x, addrTop + 4, ah - 4, AW - 12, 'dk-b') +
+            (at.has(p.to) && at.get(p.to) <= i ? mark(p.x + AW / 2 - 10, addrTop + 20) : '');
+          out.icons.push(`<g class="dk-addr-node${pCls ? ' ' + pCls : ''}" data-goto="${esc(p.to)}">${addrInner}</g>`);
+          out.lines.push(vline(p.x, addrTop + ah, bottomBus, pCls));
           farthest = Math.max(farthest, p.x);
         }
       });
@@ -324,25 +360,98 @@
       const out = { lines: [], icons: [] };
       const items = d.items.slice();
       const fin = items.length && items[items.length - 1].t === 'end' ? items.pop() : end();
-      const s = layoutSeq(items);
+      const s = layoutSeq(items, d.title, false);
       const x = 16, y0 = 14, hh = 38;
       const cx = x + CW / 2;
       const top = y0 + hh + GAP;
-      out.icons.push(shape('pill', cx - BW / 2, y0, BW, hh) + textBlock(d.title, cx, y0, hh, BW - 20, 'dk-b'));
+      out.icons.push(wrapNode(d.title, shape('pill', cx - BW / 2, y0, BW, hh) + textBlock(d.title, cx, y0, hh, BW - 20, 'dk-b')));
       out.lines.push(vline(cx, y0 + hh, top));
       const pend = s.draw(out, x, top);
       const join = top + s.bottom + 10;
       const endTop = join + 18;
       out.lines.push(vline(cx, top + s.h, endTop));
       for (const p of pend) {
-        out.lines.push(vline(p.x, p.y, join));
-        out.lines.push(hline(join, p.x, cx));
+        const pCls = p.side ? 'dk-side' : '';
+        out.lines.push(vline(p.x, p.y, join, pCls));
+        out.lines.push(hline(join, p.x, cx, pCls));
       }
-      out.icons.push(shape('pill', cx - BW / 2, endTop, BW, 36) + textBlock(fin.text, cx, endTop, 36, BW - 20, 'dk-b'));
+      out.icons.push(shape('pill', cx - BW / 2, endTop, BW, 36) + textBlock(fin.text, cx, endTop, 36, BW - 80, 'dk-b'));
       return svgOf(out, x + s.w + 16, endTop + 52, d.title);
     }
 
     return { primitiveSvg, silhouetteSvg };
+  }
+
+  // ─── извлечение всех маршрутов исполнения (Drakon.routes) ─────────────────
+  /**
+   * Извлекает маршруты исполнения схемы: главный маршрут (kind: 'skewer') и побочные маршруты (kind: 'side').
+   * Возвращает [{ kind: 'skewer' | 'side', branch, steps: string[], to: string }].
+   * Удобно для генерации тест-кейсов и чтения логики алгоритма нейросетью без шума.
+   */
+  function routes(d) {
+    const result = [];
+
+    function traceBranch(branchName, items) {
+      const mainSteps = [];
+      const branchSides = [];
+
+      function walkMain(seq) {
+        for (const it of seq) {
+          if (it.t === 'goto') return it.to;
+          if (it.t === 'end') return it.text || 'Конец';
+          if (it.t === 'act' || it.t === 'ins') {
+            mainSteps.push(it.text);
+          } else if (it.t === 'shelf') {
+            mainSteps.push(`${it.who}: ${it.text}`);
+          } else if (it.t === 'loop') {
+            mainSteps.push(`Цикл (${it.text})`);
+            walkMain(it.body || []);
+          } else if (it.t === 'q') {
+            const downLbl = it.down || 'да';
+            const rightLbl = it.right || 'нет';
+            const no = it.no || [];
+            // Записываем побочный маршрут при ответе «нет»
+            const sideSteps = mainSteps.concat([`${it.text} → ${rightLbl}`]);
+            let sideTo = 'слияние на шампур';
+            for (const nit of no) {
+              if (nit.t === 'goto') sideTo = nit.to;
+              else if (nit.t === 'end') sideTo = nit.text || 'Конец';
+              else if (nit.t === 'act' || nit.t === 'ins') sideSteps.push(nit.text);
+              else if (nit.t === 'shelf') sideSteps.push(`${nit.who}: ${nit.text}`);
+            }
+            branchSides.push({ kind: 'side', branch: branchName, steps: sideSteps, to: sideTo });
+
+            mainSteps.push(`${it.text} → ${downLbl}`);
+            if (it.yes && it.yes.length) walkMain(it.yes);
+          } else if (it.t === 'choice' && it.cases && it.cases.length) {
+            it.cases.slice(1).forEach((c) => {
+              const sideSteps = mainSteps.concat([`${it.text}: ${c.label}`]);
+              for (const cit of c.seq || []) {
+                if (cit.t === 'act' || cit.t === 'ins') sideSteps.push(cit.text);
+                else if (cit.t === 'shelf') sideSteps.push(`${cit.who}: ${cit.text}`);
+              }
+              branchSides.push({ kind: 'side', branch: branchName, steps: sideSteps, to: 'слияние под выбором' });
+            });
+            mainSteps.push(`${it.text}: ${it.cases[0].label}`);
+            walkMain(it.cases[0].seq || []);
+          }
+        }
+        return 'Конец';
+      }
+
+      const mainTo = walkMain(items);
+      result.push({ kind: 'skewer', branch: branchName, steps: mainSteps, to: mainTo });
+      result.push(...branchSides);
+    }
+
+    if (d.kind === 'primitive') {
+      traceBranch(d.title, d.items || []);
+    } else if (d.kind === 'silhouette') {
+      for (const b of d.branches || []) {
+        traceBranch(b.name, b.items || []);
+      }
+    }
+    return result;
   }
 
   // ─── проверка схемы ───────────────────────────────────────────────────────
@@ -441,27 +550,67 @@
   // ─── вывод ────────────────────────────────────────────────────────────────
   /** SVG схемы строкой. options — размеры (DEFAULTS). */
   function svg(d, options) {
-    const e = engine(Object.assign({}, DEFAULTS, options || {}));
-    for (const f of lint(d)) (f.level === 'error' ? console.error : console.warn)(`Drakon «${d.title}»: ${f.where}: ${f.message}`);
+    const found = lint(d);
+    const e = engine(Object.assign({}, DEFAULTS, options || {}), found);
+    for (const f of found) (f.level === 'error' ? console.error : console.warn)(`Drakon «${d.title}»: ${f.where}: ${f.message}`);
     return d.kind === 'silhouette' ? e.silhouetteSvg(d) : e.primitiveSvg(d);
   }
 
   /**
-   * Схема в контейнер: поле с прокруткой, кнопка «Вписать по ширине» и примечания списком.
-   * options: те же размеры и { fit: false } — без кнопки, { notes: false } — без примечаний.
+   * Схема в контейнер: поле с прокруткой, кнопки «Главный маршрут» и «Вписать по ширине», диагностика lint и примечания списком.
+   * options: те же размеры и { fit: false, skewer: false, notes: false, showLint: false }.
    */
   function figure(container, d, options) {
-    const o = Object.assign({ fit: true, notes: true }, options || {});
+    const o = Object.assign({ fit: true, skewer: true, notes: true, showLint: true }, options || {});
     let body;
-    try { body = svg(d, o); } catch (e) { body = `<p class="dk-fail">Схема не нарисовалась: ${esc(e.message)}</p>`; }
+    let issues = [];
+    try {
+      issues = lint(d);
+      body = svg(d, o);
+    } catch (e) {
+      body = `<p class="dk-fail">Схема не нарисовалась: ${esc(e.message)}</p>`;
+    }
+    const btns = [];
+    if (o.skewer) btns.push('<button type="button" class="dk-skewer" aria-pressed="false">Главный маршрут</button>');
+    if (o.fit) btns.push('<button type="button" class="dk-fit">Вписать по ширине</button>');
+    const bar = btns.length ? `<div class="dk-bar">${btns.join('')}</div>` : '';
+
+    let lintHtml = '';
+    if (o.showLint && issues.length > 0) {
+      const onlyWarn = issues.every((i) => i.level === 'warn');
+      lintHtml = `<div class="dk-lint-list${onlyWarn ? ' dk-lint-only-warn' : ''}">` +
+        issues.map((i) => `<div><b>${i.level === 'error' ? '✗' : '⚠'} ${esc(i.where)}:</b> ${esc(i.message)}</div>`).join('') +
+        `</div>`;
+    }
+
     const notes = o.notes && d.notes && d.notes.length ? `<ol class="dk-notes">${d.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ol>` : '';
-    container.innerHTML = (o.fit ? '<div class="dk-bar"><button type="button" class="dk-fit">Вписать по ширине</button></div>' : '') +
-      `<div class="dk-canvas">${body}</div>` + notes;
-    const btn = container.querySelector('.dk-fit');
-    if (btn) btn.addEventListener('click', () => {
-      const on = container.querySelector('.dk-canvas').classList.toggle('dk-fitted');
-      btn.textContent = on ? 'В натуральную величину' : 'Вписать по ширине';
+    container.innerHTML = bar + `<div class="dk-canvas">${body}</div>` + lintHtml + notes;
+
+    const canvas = container.querySelector('.dk-canvas');
+    const fitBtn = container.querySelector('.dk-fit');
+    if (fitBtn && canvas) fitBtn.addEventListener('click', () => {
+      const on = canvas.classList.toggle('dk-fitted');
+      fitBtn.textContent = on ? 'В натуральную величину' : 'Вписать по ширине';
     });
+
+    const skewBtn = container.querySelector('.dk-skewer');
+    if (skewBtn && canvas) skewBtn.addEventListener('click', () => {
+      const on = canvas.classList.toggle('dk-skewer-only');
+      skewBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      skewBtn.textContent = on ? 'Все маршруты' : 'Главный маршрут';
+    });
+
+    // Клик по адресу в силуэте подсвечивает целевую ветку
+    if (canvas) {
+      canvas.addEventListener('click', (ev) => {
+        const addr = ev.target.closest('[data-goto]');
+        if (!addr) return;
+        const targetName = addr.getAttribute('data-goto');
+        canvas.querySelectorAll('[data-branch]').forEach((b) => {
+          b.classList.toggle('dk-branch-active', b.getAttribute('data-branch') === targetName);
+        });
+      });
+    }
     return container;
   }
 
@@ -487,8 +636,7 @@
   }
 
   // ─── справка ──────────────────────────────────────────────────────────────
-  // Всё, что нужно, чтобы писать схемы, не читая движок. help() собирает текст из API и GUIDE.
-  const VERSION = '1.2';
+  const VERSION = '1.3';
   const KINDS = "вид k: 'new' — решено, сделать; 'ask' — вопрос владельцу; 'human' — делает человек; 'stop' — отказ, откат; " +
     "любое другое слово — CSS-класс dk-<слово>; null — обычный";
   const NOTE_N = 'номер примечания (1, 2, …): кружок на иконе; текст — notes[n-1] схемы';
@@ -606,7 +754,7 @@
     },
     svg: {
       sig: 'svg(scheme, sizes?)',
-      does: 'Разложить и нарисовать: SVG строкой. Замечания lint пишет в консоль (error/warn).',
+      does: 'Разложить и нарисовать: SVG строкой. Замечания lint пишет в консоль и подсвечивает на иконах (dk-lint-error / dk-lint-warn).',
       args: [['scheme', 'primitive(…) или silhouette(…)'], ['sizes', 'переопределить Drakon.defaults: { column, icon, gotoColumn, address, gap, line, pad, font }']],
       returns: "строка '<svg class=\"dk\" …>…</svg>'; цвета — из drakon.css",
       example: "el.innerHTML = D.svg(scheme)\nD.svg(scheme, { column: 260, icon: 216 })  // шире иконы",
@@ -614,11 +762,22 @@
     },
     figure: {
       sig: 'figure(container, scheme, options?)',
-      does: 'Схема в контейнер целиком: поле с прокруткой, кнопка «Вписать по ширине», примечания нумерованным списком.',
-      args: [['container', 'DOM-элемент; его содержимое заменяется'], ['scheme', 'схема'], ['options', '{ fit: false } — без кнопки, { notes: false } — без примечаний, плюс размеры как у svg']],
+      does: 'Схема в контейнер целиком: поле с прокруткой, кнопки «Главный маршрут» и «Вписать по ширине», диагностика lint и примечания списком.',
+      args: [['container', 'DOM-элемент; его содержимое заменяется'], ['scheme', 'схема'], ['options', '{ fit: false, skewer: false, notes: false, showLint: false }, плюс размеры как у svg']],
       returns: 'container',
       example: "D.figure(document.getElementById('fig'), scheme)",
-      notes: ['Если схема не рисуется, в контейнере появится текст ошибки (класс dk-fail), а не пустота.'],
+      notes: [
+        'Кнопка «Главный маршрут» приглушает побочные ветки (отказы и альтернативы), оставляя только шампур.',
+        'Если схема не рисуется, в контейнере появится текст ошибки (класс dk-fail), а не пустота.',
+      ],
+    },
+    routes: {
+      sig: 'routes(scheme)',
+      does: 'Извлечь все маршруты исполнения: главный маршрут (kind: "skewer") и побочные пути (kind: "side").',
+      args: [['scheme', 'схема primitive(…) или silhouette(…)']],
+      returns: "[{ kind: 'skewer' | 'side', branch, steps: string[], to: string }]",
+      example: "console.table(D.routes(scheme))",
+      notes: ['Удобно для генерации тест-кейсов и передачи списка всех сценариев алгоритма в ИИ-агент.'],
     },
     legend: {
       sig: 'legend(kinds?)',
@@ -672,7 +831,8 @@
       "      D.end('Готово'),",
       '    ]);',
       '    D.lint(s);                                        // [] — годна',
-      "    D.figure(document.getElementById('fig'), s);      // нарисовать",
+      '    D.routes(s);                                      // главный маршрут (шампур) + побочные сценарии',
+      "    D.figure(document.getElementById('fig'), s);      // нарисовать (с переключателем «Главный маршрут»)",
       "  Шаблон страницы — Drakon.help('page'); как выразить if/else, выходы, циклы — Drakon.help('recipes').",
       '',
       'ФУНКЦИИ',
@@ -788,7 +948,7 @@
 
     lint: () => [
       "Drakon.lint(схема) → [{ level: 'error' | 'warn', where: 'Ветка › икона', message }]. [] — годна.",
-      'svg() и figure() пишут те же замечания в консоль; figure при исключении показывает его текст в контейнере.',
+      'svg() и figure() пишут те же замечания в консоль и подсвечивают икону на схеме (dk-lint-error / dk-lint-warn).',
       '',
       'error «Адрес стоит не последним в пути.»                      → go(…) в конец своего массива; иконы после него убрать.',
       'error «Адрес внутри цикла, выбора или сливающегося вопроса…»  → вынести решение наружу: после loop/choice поставить',
@@ -815,7 +975,8 @@
       '',
       'Есть: заголовок/конец, действие, вопрос (шестиугольник), выбор + варианты, цикл «для каждого» (начало и конец цикла),',
       '      вставка, полка, имя ветки, адрес, нижняя и верхняя шины силуэта со стрелкой возврата, веточный цикл (↻),',
-      '      выходы вопроса вправо в отдельную колонку, примечания номерами вместо иконы «комментарий», виды икон цветом.',
+      '      выходы вопроса вправо в отдельную колонку, примечания номерами вместо иконы «комментарий», виды икон цветом,',
+      '      переключатель «Главный маршрут» (приглушение побочных веток), подсветка ошибок lint прямо на схеме, извлечение маршрутов routes().',
       '',
       'Нет — и что делать:',
       '- Циклы «пока» и «до» через вопрос со стрелкой вверх, цикл выбора. Заменяй: «для каждого» (loop), либо веточным циклом',
@@ -856,11 +1017,12 @@
     ].join('\n'),
 
     node: () => [
-      'БЕЗ БРАУЗЕРА (node) — проверить схему или получить SVG в файл',
+      'БЕЗ БРАУЗЕРА (node) — проверить схему, извлечь маршруты или получить SVG в файл',
       '',
       "    const Drakon = require('./drakon.js');      // также задаёт globalThis.Drakon",
       "    const s = Drakon.silhouette('…', [ … ]);",
       '    console.log(Drakon.lint(s));',
+      '    console.table(Drakon.routes(s));',
       "    require('fs').writeFileSync('scheme.svg', Drakon.svg(s));",
       '',
       '    node -e "console.log(require(\'./drakon.js\').help(\'all\'))"',
@@ -913,7 +1075,7 @@
     return `Нет раздела «${topic}». Есть: ${Object.keys(API).join(', ')}; ${Object.keys(GUIDE).join(', ')}, all.`;
   }
 
-  const Drakon = { version: VERSION, act, ins, shelf, q, choice, loop, go, end, primitive, silhouette, svg, figure, legend, lint, help, api: API, defaults: DEFAULTS };
+  const Drakon = { version: VERSION, act, ins, shelf, q, choice, loop, go, end, primitive, silhouette, svg, figure, routes, legend, lint, help, api: API, defaults: DEFAULTS };
   global.Drakon = Drakon;
   if (typeof module !== 'undefined' && module.exports) module.exports = Drakon;
 })(typeof window !== 'undefined' ? window : globalThis);

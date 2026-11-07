@@ -2,10 +2,10 @@
 window.KeelVerifySnapshot = {
   "stats": {
     "rootDir": "/mnt/Projects/apps/keel",
-    "timestamp": "2026-11-07T17:43:05.098Z",
-    "filesScanned": 303,
-    "linesScanned": 58774,
-    "importsChecked": 240,
+    "timestamp": "2026-11-07T18:53:33.671Z",
+    "filesScanned": 308,
+    "linesScanned": 59678,
+    "importsChecked": 245,
     "packagesVerified": 7,
     "decisionsOnDisk": 36,
     "ruleChecksRun": 8
@@ -96,21 +96,21 @@ window.KeelVerifySnapshot = {
       "ok": true,
       "category": "modules",
       "where": "kernel (packages/kernel)",
-      "detail": "Файлов: 11 (5882 стр.), боевые импорты: [—] ⊆ [—]",
+      "detail": "Файлов: 11 (6032 стр.), боевые импорты: [—] ⊆ [—]",
       "moduleId": "kernel"
     },
     {
       "ok": true,
       "category": "modules",
       "where": "drafting (packages/drafting)",
-      "detail": "Файлов: 44 (3199 стр.), боевые импорты: [—] ⊆ [—]",
+      "detail": "Файлов: 45 (3233 стр.), боевые импорты: [—] ⊆ [—]",
       "moduleId": "drafting"
     },
     {
       "ok": true,
       "category": "modules",
       "where": "core (packages/core)",
-      "detail": "Файлов: 108 (22873 стр.), боевые импорты: [kernel, drafting] ⊆ [kernel, drafting]",
+      "detail": "Файлов: 108 (22959 стр.), боевые импорты: [kernel, drafting] ⊆ [kernel, drafting]",
       "moduleId": "core"
     },
     {
@@ -124,7 +124,7 @@ window.KeelVerifySnapshot = {
       "ok": true,
       "category": "modules",
       "where": "api (packages/api)",
-      "detail": "Файлов: 18 (2485 стр.), боевые импорты: [core, kernel, drafting, store] ⊆ [core, store, kernel]",
+      "detail": "Файлов: 18 (2514 стр.), боевые импорты: [core, kernel, drafting, store] ⊆ [core, store, kernel]",
       "moduleId": "api"
     },
     {
@@ -138,7 +138,7 @@ window.KeelVerifySnapshot = {
       "ok": true,
       "category": "modules",
       "where": "app (packages/app)",
-      "detail": "Файлов: 84 (18114 стр.), боевые импорты: [api, core, kernel] ⊆ [api, core, kernel]",
+      "detail": "Файлов: 88 (18719 стр.), боевые импорты: [api, core, kernel] ⊆ [api, core, kernel]",
       "moduleId": "app"
     },
     {
@@ -226,7 +226,7 @@ window.KeelVerifySnapshot = {
     "kernel": {
       "id": "kernel",
       "files": 11,
-      "lines": 5882,
+      "lines": 6032,
       "prodImports": [],
       "testImports": [],
       "errors": 0,
@@ -235,8 +235,8 @@ window.KeelVerifySnapshot = {
     },
     "drafting": {
       "id": "drafting",
-      "files": 44,
-      "lines": 3199,
+      "files": 45,
+      "lines": 3233,
       "prodImports": [],
       "testImports": [],
       "errors": 0,
@@ -246,7 +246,7 @@ window.KeelVerifySnapshot = {
     "core": {
       "id": "core",
       "files": 108,
-      "lines": 22873,
+      "lines": 22959,
       "prodImports": [
         "kernel",
         "drafting"
@@ -286,7 +286,7 @@ window.KeelVerifySnapshot = {
     "api": {
       "id": "api",
       "files": 18,
-      "lines": 2485,
+      "lines": 2514,
       "prodImports": [
         "core",
         "kernel",
@@ -350,8 +350,8 @@ window.KeelVerifySnapshot = {
     },
     "app": {
       "id": "app",
-      "files": 84,
-      "lines": 18114,
+      "files": 88,
+      "lines": 18719,
       "prodImports": [
         "api",
         "core",

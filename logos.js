@@ -328,22 +328,58 @@
     return issues;
   }
 
-  /* ── 2. Автоматическая сверка модели с живым репозиторием на диске ────────── */
+  /* ── 2. Автоматическая сверка модели с живым репозиторием на диске (любой язык) ── */
+
+  const IGNORE_DIRS = new Set(['node_modules', 'dist', 'out', 'build', 'target', 'bin', 'obj', '__pycache__', '.gradle', '.git']);
+  const CODE_EXT_RE = /\.(ts|tsx|js|cjs|mjs|py|go|kt|kts|java|fs|cs|rs|c|cpp|cc|h|hpp)$/;
 
   function walkCodeFiles(dir, out) {
     out = out || [];
     if (!fs.existsSync(dir)) return out;
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const ent of entries) {
-      if (ent.name === 'node_modules' || ent.name === 'dist' || ent.name === 'out' || ent.name.startsWith('.')) continue;
+      if (IGNORE_DIRS.has(ent.name) || ent.name.startsWith('.')) continue;
       const full = path.join(dir, ent.name);
       if (ent.isDirectory()) {
         walkCodeFiles(full, out);
-      } else if (/\.(ts|tsx|js|cjs|mjs)$/.test(ent.name) && !ent.name.endsWith('.d.ts')) {
+      } else if (CODE_EXT_RE.test(ent.name) && !ent.name.endsWith('.d.ts')) {
         out.push(full);
       }
     }
     return out;
+  }
+
+  // Извлечение импортов из строки исходника для JS/TS, Python, Go, Kotlin/Java, F#/C#, Rust, C/C++
+  function extractImportsFromLine(line, ext) {
+    const found = [];
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#!') || (trimmed.startsWith('#') && !trimmed.startsWith('#include'))) {
+      return found;
+    }
+    if (/\.(ts|tsx|js|cjs|mjs)$/.test(ext)) {
+      const re = /(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g;
+      let m;
+      while ((m = re.exec(line)) !== null) found.push(m[1] || m[2]);
+    } else if (ext === '.py') {
+      const m1 = /^(?:from|import)\s+([a-zA-Z0-9_.]+)/.exec(trimmed);
+      if (m1) found.push(m1[1]);
+    } else if (ext === '.go') {
+      const m1 = /"([^"]+)"/.exec(trimmed);
+      if (m1 && (trimmed.startsWith('import ') || /^[a-z0-9_.]*\s*"[^"]+"$/.test(trimmed))) found.push(m1[1]);
+    } else if (/\.(kt|kts|java)$/.test(ext)) {
+      const m1 = /^import\s+([a-zA-Z0-9_.]+)/.exec(trimmed);
+      if (m1) found.push(m1[1]);
+    } else if (/\.(fs|cs)$/.test(ext)) {
+      const m1 = /^(?:open|using)\s+([a-zA-Z0-9_.]+)/.exec(trimmed);
+      if (m1) found.push(m1[1]);
+    } else if (ext === '.rs') {
+      const m1 = /^use\s+([a-zA-Z0-9_:]+)/.exec(trimmed);
+      if (m1) found.push(m1[1]);
+    } else if (/\.(c|cpp|cc|h|hpp)$/.test(ext)) {
+      const m1 = /^#include\s+[<"]([^>"]+)[>"]/.exec(trimmed);
+      if (m1) found.push(m1[1]);
+    }
+    return found;
   }
 
   function verifyRepo(proj, repoRoot) {
@@ -493,7 +529,20 @@
       }
     }
 
-    const importRegex = /(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?['"](@keel\/[a-z0-9-]+)(?:\/[^'"]*)?['"]/g;
+    // Сопоставление импортируемой строки с модулем проекта (для JS/TS @scope/pkg, Python pkg.sub, Go module/pkg, F#/C#/Kotlin namespace)
+    function resolveTargetModule(rawSpec) {
+      for (const m of proj.modules) {
+        if (
+          rawSpec === m.pkg ||
+          rawSpec.startsWith(m.pkg + '/') ||
+          rawSpec.startsWith(m.pkg + '.') ||
+          rawSpec.startsWith(m.pkg + '::')
+        ) {
+          return m;
+        }
+      }
+      return null;
+    }
 
     for (const m of proj.modules) {
       const modDir = path.join(rootDir, m.path);
@@ -505,11 +554,9 @@
 
       const modPkgPath = path.join(modDir, 'package.json');
       let pkgJson = null;
-      if (!fs.existsSync(modPkgPath)) {
-        addFinding('error', 'modules', `${m.path}/package.json`, 'Отсутствует package.json модуля.', m.id);
-      } else {
+      if (fs.existsSync(modPkgPath)) {
         pkgJson = JSON.parse(fs.readFileSync(modPkgPath, 'utf8'));
-        if (pkgJson.name !== m.pkg) {
+        if (pkgJson.name && m.pkg && pkgJson.name !== m.pkg) {
           addFinding('error', 'modules', `${m.path}/package.json`, `Имя пакета «${pkgJson.name}» не совпадает с моделью «${m.pkg}».`, m.id);
         }
       }
@@ -529,7 +576,13 @@
 
       for (const file of files) {
         const relFile = path.relative(rootDir, file);
-        const isTestOrBench = /\.test\.(ts|js)$/.test(file) || relFile.includes('/bench/') || relFile.includes('/smoke/');
+        const ext = path.extname(file);
+        const isTestOrBench =
+          /(\.test|_test|Test)\.(ts|js|py|go|kt|fs|cs|rs)$/.test(file) ||
+          relFile.includes('/test/') ||
+          relFile.includes('/tests/') ||
+          relFile.includes('/bench/') ||
+          relFile.includes('/smoke/');
         const content = fs.readFileSync(file, 'utf8');
         const lines = content.split('\n');
         stats.filesScanned++;
@@ -537,12 +590,9 @@
         modLines += lines.length;
 
         for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          importRegex.lastIndex = 0;
-          let match;
-          while ((match = importRegex.exec(line)) !== null) {
-            const targetPkg = match[1];
-            const targetMod = pkgByName.get(targetPkg);
+          const specs = extractImportsFromLine(lines[i], ext);
+          for (const rawSpec of specs) {
+            const targetMod = resolveTargetModule(rawSpec);
             if (!targetMod || targetMod.id === m.id) continue;
             stats.importsChecked++;
 
@@ -553,7 +603,7 @@
                   'error',
                   'imports',
                   `${relFile}:${i + 1}`,
-                  `Тест в «${m.id}» импортирует «${targetPkg}», который не разрешён ни в deps, ни в testDeps.`,
+                  `Тест в «${m.id}» импортирует «${targetMod.pkg}», который не разрешён ни в deps, ни в testDeps.`,
                   m.id
                 );
               }
@@ -564,7 +614,7 @@
                   'error',
                   'imports',
                   `${relFile}:${i + 1}`,
-                  `Нарушение границы модуля: боевой код «${m.id}» (слой ${m.layer}) импортирует «${targetPkg}» (разрешены только: ${m.deps.join(', ') || 'нет'}).`,
+                  `Нарушение границы модуля: боевой код «${m.id}» (слой ${m.layer}) импортирует «${targetMod.pkg}» (разрешены только: ${m.deps.join(', ') || 'нет'}).`,
                   m.id
                 );
               }

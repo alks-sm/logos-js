@@ -49,16 +49,27 @@ svg.dk .dk-badge-t { font-size: 10px; font-weight: 600; fill: var(--dk-ground); 
 svg.dk a .dk-ic { cursor: pointer; }
 svg.dk a:hover .dk-ic, svg.dk a:focus .dk-ic { stroke-width: 2.4; }
 
+/* Фокус на главном маршруте (шампуре) и диагностика lint прямо на схеме. */
+svg.dk .dk-side { transition: opacity .18s ease; }
+.dk-canvas.dk-skewer-only svg.dk .dk-side { opacity: 0.14; pointer-events: none; }
+svg.dk .dk-lint-error .dk-ic { stroke: var(--dk-stop); stroke-width: 2.4; fill: var(--dk-stop-bg); }
+svg.dk .dk-lint-warn .dk-ic { stroke: var(--dk-ask); stroke-width: 2.2; stroke-dasharray: 5 3; }
+svg.dk .dk-branch-active .dk-ic { stroke: var(--dk-accent); stroke-width: 2.4; }
+
 /* Поле схемы (Drakon.figure). */
-.dk-bar { display: flex; justify-content: flex-end; }
-.dk-fit { font: 12.5px var(--dk-font); color: var(--dk-accent); background: none; border: 1px solid var(--dk-hairline);
+.dk-bar { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.dk-fit, .dk-skewer { font: 12.5px var(--dk-font); color: var(--dk-accent); background: none; border: 1px solid var(--dk-hairline);
   border-radius: 6px; height: 26px; padding: 0 10px; cursor: pointer; }
-.dk-fit:hover, .dk-fit:focus-visible { border-color: var(--dk-accent); outline: none; }
+.dk-fit:hover, .dk-fit:focus-visible, .dk-skewer:hover, .dk-skewer:focus-visible { border-color: var(--dk-accent); outline: none; }
+.dk-skewer[aria-pressed="true"] { background: var(--dk-new-bg); border-color: var(--dk-accent); font-weight: 600; }
 .dk-canvas { background: var(--dk-ground); border: 1px solid var(--dk-hairline); border-radius: 10px; overflow-x: auto; margin-top: 8px; }
 .dk-canvas.dk-fitted svg { width: 100%; height: auto; }
 .dk-notes { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 4px; color: var(--dk-soft); font: 13px/1.5 var(--dk-font); max-width: 90ch; }
 .dk-notes li::marker { font-weight: 600; color: var(--dk-ink); }
 .dk-fail { color: var(--dk-stop); padding: 12px; margin: 0; }
+.dk-lint-list { margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--dk-stop-bg); color: var(--dk-stop);
+  font: 12.5px/1.45 var(--dk-font); display: grid; gap: 3px; }
+.dk-lint-list.dk-lint-only-warn { background: var(--dk-ask-bg); color: var(--dk-ask); }
 
 /* Обозначения (Drakon.legend). */
 .dk-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; background: var(--dk-ground);
