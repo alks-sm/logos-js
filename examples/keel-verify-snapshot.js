@@ -2,10 +2,10 @@
 window.KeelVerifySnapshot = {
   "stats": {
     "rootDir": "/mnt/Projects/apps/keel",
-    "timestamp": "2026-11-07T18:53:33.671Z",
-    "filesScanned": 308,
-    "linesScanned": 59678,
-    "importsChecked": 245,
+    "timestamp": "2026-11-07T19:10:14.645Z",
+    "filesScanned": 309,
+    "linesScanned": 59859,
+    "importsChecked": 246,
     "packagesVerified": 7,
     "decisionsOnDisk": 36,
     "ruleChecksRun": 8
@@ -110,7 +110,7 @@ window.KeelVerifySnapshot = {
       "ok": true,
       "category": "modules",
       "where": "core (packages/core)",
-      "detail": "Файлов: 108 (22959 стр.), боевые импорты: [kernel, drafting] ⊆ [kernel, drafting]",
+      "detail": "Файлов: 109 (23020 стр.), боевые импорты: [kernel, drafting] ⊆ [kernel, drafting]",
       "moduleId": "core"
     },
     {
@@ -138,14 +138,14 @@ window.KeelVerifySnapshot = {
       "ok": true,
       "category": "modules",
       "where": "app (packages/app)",
-      "detail": "Файлов: 88 (18719 стр.), боевые импорты: [api, core, kernel] ⊆ [api, core, kernel]",
+      "detail": "Файлов: 88 (18839 стр.), боевые импорты: [api, core, kernel] ⊆ [api, core, kernel]",
       "moduleId": "app"
     },
     {
       "ok": true,
       "category": "guard:INV-01",
       "where": "packages/core",
-      "detail": "core не должен знать про app, api, store — 0 нарушений (108 файлов)",
+      "detail": "core не должен знать про app, api, store — 0 нарушений (109 файлов)",
       "moduleId": "core",
       "invariantId": "INV-01"
     },
@@ -245,8 +245,8 @@ window.KeelVerifySnapshot = {
     },
     "core": {
       "id": "core",
-      "files": 108,
-      "lines": 22959,
+      "files": 109,
+      "lines": 23020,
       "prodImports": [
         "kernel",
         "drafting"
@@ -351,7 +351,7 @@ window.KeelVerifySnapshot = {
     "app": {
       "id": "app",
       "files": 88,
-      "lines": 18719,
+      "lines": 18839,
       "prodImports": [
         "api",
         "core",
@@ -393,7 +393,7 @@ window.KeelVerifySnapshot = {
           "ok": true,
           "category": "guard:INV-01",
           "where": "packages/core",
-          "detail": "core не должен знать про app, api, store — 0 нарушений (108 файлов)",
+          "detail": "core не должен знать про app, api, store — 0 нарушений (109 файлов)",
           "moduleId": "core",
           "invariantId": "INV-01"
         }

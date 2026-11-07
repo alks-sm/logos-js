@@ -48,6 +48,24 @@ if (cmd === 'hook-context') {
   process.exit(0);
 }
 
+if (cmd === 'init' || cmd === 'discover') {
+  const targetRepo = arg || '/mnt/Projects/apps/keel';
+  const discovered = Lg.discoverRepo(targetRepo);
+  const outName = process.argv[4] || `discovered-${discovered.id}.js`;
+  const outPath = path.join(__dirname, 'examples', outName);
+  fs.writeFileSync(outPath, Lg.formatModelCode(discovered), 'utf8');
+  console.log(`✓ Авто-сканирование (0% ИИ) завершено: модель сохранена в examples/${outName}\n`);
+  console.log(Lg.report(discovered, targetRepo));
+  console.log('\nОбнаруженная карта слоёв и фактических зависимостей:');
+  for (const m of discovered.modules) {
+    console.log(
+      `  [Слой ${m.layer}] ${m.id.padEnd(18)} (${m.path}) → deps: [${m.deps.join(', ') || '—'}]` +
+        (m.testDeps.length ? `, testDeps: [${m.testDeps.join(', ')}]` : '')
+    );
+  }
+  process.exit(0);
+}
+
 if (cmd === 'check') {
   const v = Lg.verifyRepo(KeelModel);
   writeSnapshot(v);

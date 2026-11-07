@@ -459,9 +459,13 @@
 
     if (proj.repo) {
       const rootPkgPath = path.join(rootDir, 'package.json');
-      if (!fs.existsSync(rootPkgPath)) {
+      const expectsPkgJson =
+        (proj.repo.requiredFiles && proj.repo.requiredFiles.includes('package.json')) ||
+        (proj.repo.requiredScripts && proj.repo.requiredScripts.length > 0) ||
+        (proj.repo.requiredTools && proj.repo.requiredTools.length > 0);
+      if (expectsPkgJson && !fs.existsSync(rootPkgPath)) {
         addFinding('error', 'stack', 'package.json', 'Отсутствует корневой package.json.');
-      } else {
+      } else if (fs.existsSync(rootPkgPath)) {
         const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf8'));
         for (const scr of proj.repo.requiredScripts || []) {
           if (!rootPkg.scripts || !rootPkg.scripts[scr]) {
@@ -1116,6 +1120,372 @@
     return lines.join('\n');
   }
 
+  /* ── 3. Детерминированный реверс-инжиниринг репозитория в модель Logos ─────── */
+
+  function discoverRepo(repoRoot) {
+    if (!fs || !path) {
+      throw new Error('Logos.discoverRepo доступна только в среде Node.js.');
+    }
+    const rootDir = path.resolve(repoRoot);
+    if (!fs.existsSync(rootDir)) {
+      throw new Error(`Каталог не найден: ${rootDir}`);
+    }
+
+    const repoId = path.basename(rootDir);
+    let title = repoId;
+    let summary = `Автоматически снятая архитектурная модель репозитория ${repoId}`;
+    const stack = new Set();
+    const requiredFiles = [];
+    const requiredScripts = [];
+    let decisionsDir = null;
+
+    // 1. Определение стека и конфигурационных файлов
+    const candidateConfigs = [
+      'package.json',
+      'tsconfig.json',
+      'tsconfig.base.json',
+      'biome.json',
+      'vitest.config.ts',
+      'go.mod',
+      'settings.gradle.kts',
+      'build.gradle.kts',
+      'pyproject.toml',
+      '.githooks/pre-commit',
+    ];
+    for (const cf of candidateConfigs) {
+      if (fs.existsSync(path.join(rootDir, cf))) requiredFiles.push(cf);
+    }
+
+    const rootPkgPath = path.join(rootDir, 'package.json');
+    if (fs.existsSync(rootPkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf8'));
+      if (pkg.name) title = pkg.name;
+      if (pkg.description) summary = pkg.description;
+      const allDeps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
+      if (allDeps.typescript) stack.add('TypeScript');
+      if (allDeps.vitest) stack.add('Vitest');
+      if (allDeps['@biomejs/biome']) stack.add('Biome');
+      if (allDeps.electron) stack.add('Electron');
+      if (pkg.scripts) {
+        for (const s of ['check', 'test', 'typecheck', 'lint', 'build', 'smoke']) {
+          if (pkg.scripts[s]) requiredScripts.push(s);
+        }
+      }
+    }
+
+    const readmePath = path.join(rootDir, 'README.md');
+    if (fs.existsSync(readmePath)) {
+      const rLines = fs.readFileSync(readmePath, 'utf8').split('\n');
+      const h1 = rLines.find((l) => l.startsWith('# '));
+      if (h1) title = h1.replace(/^#\s+/, '').trim();
+      const para = rLines.find((l) => l.trim() && !l.startsWith('#') && !l.startsWith('|') && !l.startsWith('`'));
+      if (para) summary = para.trim().slice(0, 180);
+    }
+
+    // 2. Обнаружение модулей для разных экосистем (Node/TS packages/*, Gradle settings.gradle.kts, Go go.mod, Python)
+    const rawModules = [];
+
+    const pkgsDir = path.join(rootDir, 'packages');
+    if (fs.existsSync(pkgsDir) && fs.statSync(pkgsDir).isDirectory()) {
+      stack.add('Node.js Workspaces');
+      const dirs = fs.readdirSync(pkgsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
+      for (const d of dirs) {
+        const modRel = `packages/${d.name}`;
+        const modAbs = path.join(rootDir, modRel);
+        const pJsonPath = path.join(modAbs, 'package.json');
+        let pkgName = `@${repoId}/${d.name}`;
+        let role = `Пакет ${d.name}`;
+        if (fs.existsSync(pJsonPath)) {
+          const pj = JSON.parse(fs.readFileSync(pJsonPath, 'utf8'));
+          if (pj.name) pkgName = pj.name;
+          if (pj.description) role = pj.description;
+        }
+        const subFiles = [];
+        const srcDir = path.join(modAbs, 'src');
+        if (fs.existsSync(srcDir) && fs.statSync(srcDir).isDirectory()) {
+          const subs = fs
+            .readdirSync(srcDir, { withFileTypes: true })
+            .filter((e) => e.isDirectory())
+            .map((e) => `src/${e.name}`);
+          subFiles.push(...subs.slice(0, 4));
+          if (subFiles.length === 0) subFiles.push('src');
+        }
+        rawModules.push({
+          id: d.name,
+          title: d.name,
+          pkg: pkgName,
+          path: modRel,
+          role,
+          files: subFiles,
+        });
+      }
+    }
+
+    const gradleSettingsPath = path.join(rootDir, 'settings.gradle.kts');
+    if (rawModules.length === 0 && fs.existsSync(gradleSettingsPath)) {
+      stack.add('Kotlin');
+      stack.add('Gradle');
+      const gText = fs.readFileSync(gradleSettingsPath, 'utf8');
+      const incRe = /include\(\s*"([^"]+)"\s*\)/g;
+      let m;
+      const gradleMods = [];
+      while ((m = incRe.exec(gText)) !== null) {
+        gradleMods.push(m[1]);
+      }
+      for (const gm of gradleMods) {
+        const cleanPath = gm.replace(/^:/, '').replace(/:/g, '/');
+        const modAbs = path.join(rootDir, cleanPath);
+        if (!fs.existsSync(modAbs)) continue;
+        const id = gm.replace(/^:/, '').replace(/:/g, '-');
+        const ktFiles = walkCodeFiles(modAbs).filter((f) => f.endsWith('.kt'));
+        let pkgPrefix = id;
+        if (ktFiles.length > 0) {
+          const firstKt = fs.readFileSync(ktFiles[0], 'utf8');
+          const pm = /^package\s+([a-zA-Z0-9_.]+)/m.exec(firstKt);
+          if (pm) pkgPrefix = pm[1];
+        }
+        rawModules.push({
+          id,
+          title: gm,
+          pkg: pkgPrefix,
+          path: cleanPath,
+          role: `Gradle-модуль ${gm} (${ktFiles.length} .kt файлов)`,
+          files: ['build.gradle.kts'],
+        });
+      }
+    }
+
+    const goModPath = path.join(rootDir, 'go.mod');
+    if (rawModules.length === 0 && fs.existsSync(goModPath)) {
+      stack.add('Go');
+      const goText = fs.readFileSync(goModPath, 'utf8');
+      const mm = /^module\s+(\S+)/m.exec(goText);
+      const goModuleName = mm ? mm[1] : repoId;
+      for (const topFolder of ['cmd', 'internal', 'pkg']) {
+        const absTop = path.join(rootDir, topFolder);
+        if (!fs.existsSync(absTop) || !fs.statSync(absTop).isDirectory()) continue;
+        const subs = fs.readdirSync(absTop, { withFileTypes: true }).filter((d) => d.isDirectory());
+        for (const s of subs) {
+          const rel = `${topFolder}/${s.name}`;
+          rawModules.push({
+            id: `${topFolder}-${s.name}`,
+            title: `${topFolder}/${s.name}`,
+            pkg: `${goModuleName}/${rel}`,
+            path: rel,
+            role: `Go-пакет ${rel}`,
+            files: [],
+          });
+        }
+      }
+    }
+
+    if (rawModules.length === 0) {
+      const topDirs = fs
+        .readdirSync(rootDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && !IGNORE_DIRS.has(d.name) && !d.name.startsWith('.') && d.name !== 'docs' && d.name !== 'tests');
+      for (const d of topDirs) {
+        const codeFiles = walkCodeFiles(path.join(rootDir, d.name));
+        if (codeFiles.length === 0) continue;
+        if (codeFiles.some((f) => f.endsWith('.py'))) stack.add('Python');
+        rawModules.push({
+          id: d.name,
+          title: d.name,
+          pkg: d.name,
+          path: d.name,
+          role: `Модуль ${d.name} (${codeFiles.length} файлов)`,
+          files: [],
+        });
+      }
+    }
+
+    // 3. Сканирование реальных импортов между обнаруженными модулями
+    function resolveDiscoveredMod(rawSpec) {
+      for (const m of rawModules) {
+        if (
+          rawSpec === m.pkg ||
+          rawSpec.startsWith(m.pkg + '/') ||
+          rawSpec.startsWith(m.pkg + '.') ||
+          rawSpec.startsWith(m.pkg + '::')
+        ) {
+          return m;
+        }
+      }
+      return null;
+    }
+
+    for (const m of rawModules) {
+      const modAbs = path.join(rootDir, m.path);
+      const files = walkCodeFiles(modAbs);
+      const prodDeps = new Set();
+      const testDeps = new Set();
+
+      const gradleBuild = path.join(modAbs, 'build.gradle.kts');
+      if (fs.existsSync(gradleBuild)) {
+        const gbText = fs.readFileSync(gradleBuild, 'utf8');
+        const pRe = /project\(\s*"([^"]+)"\s*\)/g;
+        let pm;
+        while ((pm = pRe.exec(gbText)) !== null) {
+          const targetId = pm[1].replace(/^:/, '').replace(/:/g, '-');
+          if (targetId !== m.id && rawModules.some((rm) => rm.id === targetId)) {
+            prodDeps.add(targetId);
+          }
+        }
+      }
+
+      for (const file of files) {
+        const relFile = path.relative(rootDir, file);
+        const ext = path.extname(file);
+        const isTest =
+          /(\.test|_test|Test)\.(ts|js|py|go|kt|fs|cs|rs)$/.test(file) ||
+          relFile.includes('/test/') ||
+          relFile.includes('/tests/') ||
+          relFile.includes('/bench/') ||
+          relFile.includes('/smoke/');
+        const lines = fs.readFileSync(file, 'utf8').split('\n');
+        for (const line of lines) {
+          const specs = extractImportsFromLine(line, ext);
+          for (const sp of specs) {
+            const target = resolveDiscoveredMod(sp);
+            if (!target || target.id === m.id) continue;
+            if (isTest) testDeps.add(target.id);
+            else prodDeps.add(target.id);
+          }
+        }
+      }
+
+      m.deps = Array.from(prodDeps);
+      m.testDeps = Array.from(testDeps).filter((d) => !prodDeps.has(d));
+    }
+
+    // 4. Топологическое вычисление слоёв
+    const modById = new Map(rawModules.map((m) => [m.id, m]));
+    const memoLayer = new Map();
+    const visiting = new Set();
+    function computeLayer(id) {
+      if (memoLayer.has(id)) return memoLayer.get(id);
+      if (visiting.has(id)) return 0;
+      visiting.add(id);
+      const m = modById.get(id);
+      let lvl = 0;
+      if (m && m.deps.length > 0) {
+        lvl = 1 + Math.max(...m.deps.map((depId) => computeLayer(depId)));
+      }
+      visiting.delete(id);
+      memoLayer.set(id, lvl);
+      return lvl;
+    }
+    for (const m of rawModules) {
+      m.layer = computeLayer(m.id);
+    }
+
+    // 5. Автоматическое чтение решений из docs/decisions/*.md
+    const decisions = [];
+    const candidateDecDir = path.join(rootDir, 'docs', 'decisions');
+    if (fs.existsSync(candidateDecDir) && fs.statSync(candidateDecDir).isDirectory()) {
+      decisionsDir = 'docs/decisions';
+      const decFiles = fs
+        .readdirSync(candidateDecDir)
+        .filter((f) => /^\d{4}-.*\.md$/.test(f))
+        .sort();
+      for (const f of decFiles) {
+        const id = f.slice(0, 4);
+        const text = fs.readFileSync(path.join(candidateDecDir, f), 'utf8');
+        const lines = text.split('\n');
+        const h1 = lines.find((l) => l.startsWith('# '));
+        const decTitle = h1 ? h1.replace(/^#\s+/, '').replace(/^\d{4}\.\s*/, '').trim() : f;
+        const bodyLine = lines.find((l) => l.trim() && !l.startsWith('#') && !l.startsWith('|'));
+        const rule = bodyLine ? bodyLine.trim().slice(0, 140) : decTitle;
+        decisions.push(decision(id, decTitle, rule, { file: f }));
+      }
+    }
+    if (decisions.length === 0) {
+      decisions.push(decision('0001', 'Слоистая архитектура модулей', 'Зависимости направлены строго сверху вниз по слоям без циклов.'));
+    }
+
+    // 6. Автоматическое создание базовых инвариантов со стражами по найденным тестам
+    const invariants = [];
+    const allCodeFiles = walkCodeFiles(rootDir);
+    const guardTests = allCodeFiles
+      .filter((f) => /guard\.test\.|window-state\.test\.|memory\.test\.|store\.test\.|api\.test\./.test(f))
+      .map((f) => path.relative(rootDir, f));
+
+    if (guardTests.length > 0) {
+      invariants.push(
+        invariant('INV-GUARD-01', 'Ключевые тесты-стражи архитектуры присутствуют в репозитории', decisions[0].id, {
+          why: 'Автоматически обнаруженные охранные тесты при сканировании репозитория.',
+          guard: guardTests.join(', '),
+          scope: rawModules.map((m) => m.id),
+          rules: [{ kind: 'file-exists', paths: guardTests, message: 'Охранные тесты репозитория на месте' }],
+        })
+      );
+    } else {
+      invariants.push(
+        invariant('INV-ARCH-01', 'Соблюдение границ слоёв модулей', decisions[0].id, {
+          why: 'Модули нижнего слоя не должны импортировать модули верхних слоёв.',
+          guard: 'Logos.verifyRepo (проверка импортов)',
+          scope: rawModules.map((m) => m.id),
+          rules: [],
+        })
+      );
+    }
+
+    const modules = rawModules
+      .sort((a, b) => a.layer - b.layer || a.id.localeCompare(b.id))
+      .map((m) =>
+        moduleDef(m.id, m.title, m.layer, {
+          layerName: m.layer === 0 ? 'Фундамент (слой 0)' : `Уровень ${m.layer}`,
+          role: m.role,
+          pkg: m.pkg,
+          path: m.path,
+          files: m.files,
+          deps: m.deps,
+          testDeps: m.testDeps,
+        })
+      );
+
+    return project(
+      { id: repoId, title, summary },
+      {
+        repo: {
+          root: rootDir,
+          stack: Array.from(stack),
+          requiredFiles,
+          requiredScripts,
+          decisionsDir,
+        },
+        terms: [],
+        decisions,
+        invariants,
+        modules,
+        sockets: [],
+        states: [],
+        transitions: [],
+        protocols: [],
+        algorithms: [],
+      }
+    );
+  }
+
+  function formatModelCode(proj, globalName) {
+    const gName = globalName || 'DiscoveredModel';
+    return [
+      `/* Автоматически снятая модель Logos.discoverRepo для «${proj.title}» (${proj.repo && proj.repo.root}) */`,
+      `(function (root, factory) {`,
+      `  if (typeof module === 'object' && module.exports) {`,
+      `    const Lg = require('../logos.js');`,
+      `    module.exports = factory(Lg);`,
+      `  } else {`,
+      `    root.${gName} = factory(root.Logos);`,
+      `  }`,
+      `})(typeof self !== 'undefined' ? self : this, function (Lg) {`,
+      `  'use strict';`,
+      `  const raw = ${JSON.stringify(proj, null, 2)};`,
+      `  return Lg.project({ id: raw.id, title: raw.title, summary: raw.summary }, raw);`,
+      `});`,
+      ``,
+    ].join('\n');
+  }
+
   const HELP = {
     overview: [
       'Logos 1.2 — фреймворк кристаллизации архитектуры: единая база инвариантов, структуры файлов, состояний и схем (ДРАКОН + Дорожки).',
@@ -1156,6 +1526,8 @@
     project,
     lint,
     verifyRepo,
+    discoverRepo,
+    formatModelCode,
     layersSvg,
     statesSvg,
     brief,
