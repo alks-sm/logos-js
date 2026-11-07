@@ -1,0 +1,9 @@
+{
+  "name": "access-ctrl",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Проект «Контроллер шлюза безопасности» на исполняемом скелете Logos",
+  "scripts": {
+    "test": "node test.js"
+  }
+}

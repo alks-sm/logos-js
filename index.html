@@ -228,8 +228,14 @@
        ════════════════════════════════════════════════════════════════════════ -->
   <main class="floor-pane active" id="floor-micro">
 
-    <!-- 1. Пульт сценариев и пошаговая Лента тактов (T1..Tn) -->
+    <!-- 1. Выбор узла, сценариев и пошаговая Лента тактов (T1..Tn) -->
     <div class="control-deck">
+      <div class="deck-row" style="padding-bottom:8px;border-bottom:1px solid var(--lg-hairline)">
+        <div class="bar-pills" id="unit-pills">
+          <b style="font-size:12.5px;margin-right:4px">Испытуемый узел:</b>
+        </div>
+        <span class="soft" id="unit-verify-line" style="font-size:12px"></span>
+      </div>
       <div class="deck-row">
         <div class="bar-pills" id="sc-pills">
           <b style="font-size:12.5px;margin-right:4px">Сценарий:</b>
@@ -376,13 +382,19 @@
 <script src="examples/nav-skeleton/impl/steps.js"></script>
 <script src="examples/nav-skeleton/impl/ports.js"></script>
 <script src="examples/nav-skeleton/index.js"></script>
+<script src="examples/access-ctrl/units/core-flow/1-schema.js"></script>
+<script src="examples/access-ctrl/units/core-flow/2-plan.js"></script>
+<script src="examples/access-ctrl/units/core-flow/3-contracts.js"></script>
+<script src="examples/access-ctrl/units/core-flow/impl/guards.js"></script>
+<script src="examples/access-ctrl/units/core-flow/impl/steps.js"></script>
+<script src="examples/access-ctrl/units/core-flow/impl/ports.js"></script>
+<script src="examples/access-ctrl/units/core-flow/index.js"></script>
 <script>
 (function () {
   const M = window.KeelModel;
   const Lg = window.Logos;
   const D = window.Drakon;
   const Rt = window.LogosRuntime;
-  const Unit = window.NavSkeletonUnit;
   const V = window.KeelVerifySnapshot || { findings: [], moduleStats: {} };
 
   // Переключение этажей
@@ -394,17 +406,16 @@
   floorBtns.forEach((b) => { b.onclick = () => setFloor(b.dataset.floor); });
 
   // ── ЭТАЖ II: ЦЕХ УЗЛА (ДРАКОН + ПОШАГОВАЯ ЛЕНТА ТАКТОВ + ТАБЛИЦА РЕГИСТРОВ) ──
-  const scheme = Unit.plan.schemes.applyNav;
-  document.getElementById('stage-scheme-title').textContent = scheme.title;
+  const UNITS = [window.AccessCtrlUnit, window.NavSkeletonUnit].filter(Boolean);
+  let Unit = UNITS[0];
+  let scheme = Object.values(Unit.plan.schemes)[0];
+  let contractMap = new Map(Unit.contracts.map((c) => [c.id, c]));
+  let currentScenario = Unit.schema.scenarios[1];
+  let currentRun = null;
+  let activeTickIdx = -1;
 
   const drakonStage = document.getElementById('drakon-stage');
-  drakonStage.innerHTML = D.svg(scheme);
-
-  const contractMap = new Map(Unit.contracts.map((c) => [c.id, c]));
-  let currentScenario = Unit.schema.scenarios[1]; // Сценарий 2 по умолчанию
-  let currentRun = null;
-  let activeTickIdx = -1; // -1 означает «Весь маршрут целиком»
-
+  const unitPills = document.getElementById('unit-pills');
   const scPills = document.getElementById('sc-pills');
   const clockTape = document.getElementById('clock-tape');
   const btnAllTicks = document.getElementById('btn-all-ticks');
@@ -429,8 +440,8 @@
   function renderSlotInspector(slotId) {
     const box = document.getElementById('slot-inspector');
     const badge = document.getElementById('slot-kind-badge');
-    const cleanId = slotId ? slotId.split('.').pop() : 'canSwitchTab';
-    const c = contractMap.get(cleanId) || Unit.contracts[2];
+    const cleanId = slotId ? slotId.split('.').pop() : Unit.contracts[0].id;
+    const c = contractMap.get(cleanId) || Unit.contracts[0];
     badge.textContent = `${c.kind}${c.port ? ' · ' + c.port : ''} · ✓ ${(c.cases || []).length}/${(c.cases || []).length}`;
     const src = findSlotFnSource(c.id);
     box.innerHTML =
@@ -445,18 +456,37 @@
       `</div>`;
   }
 
+  function buildRegisterRows(stateBefore, stateAfter) {
+    const rows = [];
+    for (const key of Object.keys(stateAfter)) {
+      const bVal = stateBefore[key];
+      const aVal = stateAfter[key];
+      if (bVal && typeof bVal === 'object' && !Array.isArray(bVal) && aVal && typeof aVal === 'object') {
+        for (const subK of Object.keys(aVal)) {
+          rows.push([`state.${key}.${subK}`, bVal[subK], aVal[subK]]);
+        }
+      } else {
+        rows.push([`state.${key}`, bVal, aVal]);
+      }
+    }
+    for (const [dName, dFn] of Object.entries(Unit.schema.derived || {})) {
+      if (typeof dFn === 'function' && dFn.length <= 1) {
+        rows.push([`[derived] ${dName}`, dFn(stateBefore), dFn(stateAfter)]);
+      }
+    }
+    return rows;
+  }
+
   function updateMicroView() {
     const trace = currentRun.trace;
     const isAll = activeTickIdx < 0 || activeTickIdx >= trace.length;
     btnAllTicks.setAttribute('aria-pressed', isAll ? 'true' : 'false');
 
-    // 1. Обновляем кнопки на Ленте тактов
     clockTape.querySelectorAll('.tick-btn').forEach((btn, idx) => {
-      btn.classList.toggle('current', !isAll && idx === activeTickIdx);
-      btn.classList.toggle('done', isAll || idx < activeTickIdx);
+      btn.classList.toggle('current', !isAll && btn.dataset.traceIdx == activeTickIdx);
+      btn.classList.toggle('done', isAll || Number(btn.dataset.traceIdx) < activeTickIdx);
     });
 
-    // 2. Подсвечиваем пройденные иконы и текущий такт на полноразмерной схеме ДРАКОН
     const visibleTrace = isAll ? trace : trace.slice(0, activeTickIdx + 1);
     const hitWheres = new Set(visibleTrace.map((t) => t.where));
     const currentWhere = !isAll && trace[activeTickIdx] ? trace[activeTickIdx].where : null;
@@ -475,7 +505,6 @@
       });
     }
 
-    // Плавно центрируем область прокрутки схемы на активной иконе, если она за краем
     if (currentTargetNode && !drakonStage.classList.contains('fit-width')) {
       const bbox = currentTargetNode.getBBox();
       const targetLeft = Math.max(0, bbox.x + bbox.width / 2 - drakonStage.clientWidth / 2);
@@ -483,7 +512,6 @@
       drakonStage.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
     }
 
-    // 3. Вычисляем состояние «До → После» (для всего прогона или для конкретного такта T_k)
     const activeTick = !isAll ? trace[activeTickIdx] : trace[trace.length - 1];
     const stateBefore = isAll ? currentScenario.state : activeTick.beforeState;
     const stateAfter = isAll ? currentRun.state : activeTick.afterState;
@@ -494,15 +522,7 @@
       ? `Полный маршрут (${trace.length} тактов → «${currentRun.outcome}»)`
       : `Такт T${activeTick.step}: ${activeTick.call ? activeTick.call + '()' : activeTick.where} → ${activeTick.detail}`;
 
-    const rows = [
-      ['state.open.kind', stateBefore.open.kind, stateAfter.open.kind],
-      ['state.open.path', stateBefore.open.path, stateAfter.open.path],
-      ['state.open.pick', stateBefore.open.pick, stateAfter.open.pick],
-      ['state.tab', stateBefore.tab, stateAfter.tab],
-      ['state.shown', stateBefore.shown, stateAfter.shown],
-      ['state.rev', stateBefore.rev, stateAfter.rev],
-      ['[derived] modeOf', Unit.schema.derived.modeOf(stateBefore), Unit.schema.derived.modeOf(stateAfter)],
-    ];
+    const rows = buildRegisterRows(stateBefore, stateAfter);
 
     let changedCount = 0;
     const stateTbody = document.querySelector('#tbl-reg-state tbody');
@@ -517,7 +537,6 @@
       .join('');
     document.getElementById('reg-changed-badge').textContent = `${changedCount} изм.`;
 
-    // 4. Таблица рабочих регистров Bag и вызовов шины портов (D.shelf)
     const bagTbody = document.querySelector('#tbl-reg-bag tbody');
     const bagRows = [];
     for (const [k, v] of Object.entries(bagAfter || {})) {
@@ -530,8 +549,7 @@
     bagTbody.innerHTML = bagRows.join('') || '<tr><td colspan="2" class="soft">Пусто</td></tr>';
     document.getElementById('ports-count-badge').textContent = `${(effectsNow || []).length} портов`;
 
-    // 5. Обновляем паспорт колбэка
-    const callToInspect = (activeTick && activeTick.call) || 'canSwitchTab';
+    const callToInspect = (activeTick && activeTick.call) || Unit.contracts[0].id;
     renderSlotInspector(callToInspect);
   }
 
@@ -544,13 +562,13 @@
       b.setAttribute('aria-pressed', b.dataset.sc === sc.id ? 'true' : 'false');
     }
 
-    // Строим кнопки тактов на ленте (только содержательные шаги с колбэками и концом)
     clockTape.innerHTML = '';
     currentRun.trace.forEach((t, idx) => {
       if (!t.call && t.iconType !== 'end') return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'tick-btn done';
+      btn.dataset.traceIdx = String(idx);
       const shortCall = t.call ? t.call + '()' : t.detail;
       btn.innerHTML = `<b>T${t.step}</b> <span>${shortCall}</span>`;
       btn.onclick = () => {
@@ -563,14 +581,44 @@
     updateMicroView();
   }
 
-  for (const sc of Unit.schema.scenarios) {
+  function selectUnit(nextUnit) {
+    Unit = nextUnit;
+    scheme = Object.values(Unit.plan.schemes)[0];
+    contractMap = new Map(Unit.contracts.map((c) => [c.id, c]));
+    document.getElementById('stage-scheme-title').textContent = scheme.title;
+    drakonStage.innerHTML = D.svg(scheme);
+
+    const vRes = Rt.verifySkeleton(Unit);
+    document.getElementById('top-verify-badge').textContent = `✓ Скелет ${vRes.passed.length}/${vRes.passed.length} ОК`;
+    document.getElementById('unit-verify-line').textContent =
+      `Колбэков: ${Unit.contracts.length} · Сценариев: ${Unit.schema.scenarios.length} · Замечаний верификатора: ${vRes.issues.length}`;
+
+    for (const b of unitPills.querySelectorAll('button[data-unit]')) {
+      b.setAttribute('aria-pressed', b.dataset.unit === Unit.id ? 'true' : 'false');
+    }
+
+    scPills.innerHTML = '<b style="font-size:12.5px;margin-right:4px">Сценарий:</b>';
+    for (const sc of Unit.schema.scenarios) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pill-btn';
+      btn.dataset.sc = sc.id;
+      btn.textContent = sc.title;
+      btn.onclick = () => loadScenario(sc);
+      scPills.appendChild(btn);
+    }
+
+    loadScenario(Unit.schema.scenarios[1] || Unit.schema.scenarios[0]);
+  }
+
+  for (const u of UNITS) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'pill-btn';
-    btn.dataset.sc = sc.id;
-    btn.textContent = sc.title;
-    btn.onclick = () => loadScenario(sc);
-    scPills.appendChild(btn);
+    btn.dataset.unit = u.id;
+    btn.textContent = `${u.id}: ${u.title}`;
+    btn.onclick = () => selectUnit(u);
+    unitPills.appendChild(btn);
   }
 
   document.getElementById('btn-all-ticks').onclick = () => {
@@ -635,7 +683,7 @@
     btnZoomFit.textContent = fitted ? 'Масштаб: вписан по ширине' : 'Масштаб: 100% (читаемый)';
   };
 
-  loadScenario(Unit.schema.scenarios[1]);
+  selectUnit(UNITS[0]);
 
   // ── ЭТАЖ I и III: МАКРО-АРХИТЕКТУРА И ГЕНЕРАТОР ТЗ ──
   const issues = Lg.lint(M);

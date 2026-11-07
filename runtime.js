@@ -322,11 +322,16 @@
       ];
       for (const file of files) {
         const full = path.join(implDir, file);
-        const lines = fs.readFileSync(full, 'utf8').split('\n');
+        const rawText = fs.readFileSync(full, 'utf8');
+        // Заменяем комментарии пробелами (сохраняя номера строк), чтобы слова внутри комментариев не ловили false-positive
+        const stripped = rawText
+          .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+          .replace(/\/\/.*$/gm, '');
+        const lines = stripped.split('\n');
         let fileClean = true;
         lines.forEach((line, i) => {
           const t = line.trim();
-          if (t.startsWith('//') || t.startsWith('*')) return;
+          if (!t) return;
           for (const rule of forbidden) {
             if (rule.re.test(line)) {
               fileClean = false;
